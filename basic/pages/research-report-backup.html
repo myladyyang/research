@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Report - Climate AI</title>
+    <style>
+        :root {
+            --primary-color: #0a7e5e;
+            --secondary-color: #f0f2f5;
+            --text-color: #333;
+            --light-text: #64748b;
+            --border-color: #e1e4e8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background-color: #ffffff;
+            color: var(--text-color);
+            line-height: 1.5;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #ffffff;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 100;
+            padding: 0 20px;
+        }
+
+        .top-header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+        }
+
+        .top-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .top-header-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .top-header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .top-header-button {
+            border: none;
+            background: transparent;
+            padding: 6px 8px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            color: #64748b;
+        }
+
+        .top-header-button:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #5364FF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .sidebar {
+            width: 240px;
+            background-color: #f7f7f5;
+            border-right: 1px solid var(--border-color);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            position: fixed;
+            top: 60px;
+            bottom: 0;
+            left: 0;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 240px;
+            margin-top: 60px;
+            padding: 24px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .report-container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .report-header {
+            margin-bottom: 24px;
+        }
+
+        .report-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1e293b;
+            line-height: 1.3;
+            margin-bottom: 16px;
+        }
+
+        .report-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+
+        .report-tab {
+            padding: 8px 16px;
+            margin-right: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--light-text);
+            border-bottom: 2px solid transparent;
+        }
+
+        .report-tab.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .report-stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 32px;
+            font-size: 14px;
+            color: var(--light-text);
+            align-items: center;
+        }
+
+        .upgrade-banner {
+            background-color: #f7f7f5;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .upgrade-text {
+            font-size: 14px;
+            color: var(--text-color);
+        }
+
+        .upgrade-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            color: var(--light-text);
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .source-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .source-card {
+            flex: 1;
+            min-width: 160px;
+            max-width: 200px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .source-card-header {
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--light-text);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .source-logo {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #eee;
+            overflow: hidden;
+        }
+
+        .source-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .source-content {
+            padding: 12px;
+            flex: 1;
+        }
+
+        .source-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .source-image {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            margin-bottom: 8px;
+        }
+
+        .report-section {
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #1e293b;
+        }
+
+        .report-content {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .report-content p {
+            margin-bottom: 16px;
+        }
+
+        .report-content ul {
+            margin-bottom: 16px;
+            padding-left: 24px;
+        }
+
+        .report-content li {
+            margin-bottom: 8px;
+        }
+
+        .report-content .bullet-point {
+            position: relative;
+            margin-bottom: 16px;
+            padding-left: 24px;
+        }
+
+        .report-content .bullet-point:before {
+            content: "•";
+            position: absolute;
+            left: 8px;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .report-content .info-link {
+            color: #64748b;
+            text-decoration: none;
+            font-size: 12px;
+            background-color: #f1f5f9;
+            border-radius: 4px;
+            padding: 2px 6px;
+            margin-left: 8px;
+        }
+
+        .related-section {
+            margin-top: 40px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 24px;
+        }
+
+        .related-item {
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .related-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #1e293b;
+        }
+
+        .expand-icon {
+            color: var(--light-text);
+        }
+
+        .actions-bar {
+            display: flex;
+            gap: 16px;
+            margin-top: 40px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .action-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            padding: 8px;
+            font-size: 14px;
+            color: var(--light-text);
+            cursor: pointer;
+        }
+
+        .action-button:hover {
+            color: var(--primary-color);
+        }
+
+        .floating-input {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: white;
+            border-top: 1px solid var(--border-color);
+            padding: 16px;
+            z-index: 100;
+        }
+
+        .input-container {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 16px;
+        }
+
+        .input-field {
+            flex: 1;
+            border: none;
+            padding: 8px 0;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .input-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .input-button {
+            background: none;
+            border: none;
+            padding: 8px;
+            color: var(--light-text);
+            cursor: pointer;
+        }
+
+        .input-button.send {
+            color: var(--primary-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            margin-bottom: 16px;
+            cursor: pointer;
+        }
+
+        .logo img {
+            height: 24px;
+            margin-right: 8px;
+        }
+
+        .logo span {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .collapse-button {
+            margin-left: auto;
+            cursor: pointer;
+            color: #64748b;
+        }
+
+        .new-thread {
+            padding: 8px 12px;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 24px;
+            cursor: pointer;
+            font-weight: 400;
+            font-size: 14px;
+            color: #1e293b;
+        }
+
+        .new-thread svg {
+            margin-right: 8px;
+            width: 14px;
+            height: 14px;
+        }
+
+        .thread-shortcut {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-item svg {
+            margin-right: 12px;
+            width: 16px;
+            height: 16px;
+        }
+
+        .nav-item.active {
+            background-color: rgba(10, 126, 94, 0.1);
+            color: var(--primary-color);
+        }
+
+        .library-items {
+            margin-top: 4px;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .library-item {
+            padding: 6px 8px 6px 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .library-item:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="top-header">
+        <div class="top-header-content">
+            <div class="top-header-left">
+                <div class="top-header-title">Climate AI</div>
+            </div>
+            <div class="top-header-actions">
+                <button class="top-header-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+                    </svg>
+                </button>
+                <button class="top-header-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.858 2.929 2.929 0 0 1 0 5.858z"/>
+                    </svg>
+                </button>
+                <div class="user-avatar">M</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="logo">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQTSo5W0BRQ0sMUkNqTLNTWzjnBwm2jKQxiBEW16sc-YZ9NRMKl44ffEQBZaus3ExZiA&usqp=CAU" alt="Climate AI Logo">
+                <span>Climate AI</span>
+                <div class="collapse-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M6 12.796V3.204L11.481 8 6 12.796zm.659.753 5.48-4.796a1 1 0 0 0 0-1.506L6.66 2.451C6.011 1.885 5 2.345 5 3.204v9.592a1 1 0 0 0 1.659.753z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="new-thread">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 0a1 1 0 0 1 1 1v6h6a1 1 0 1 1 0 2H9v6a1 1 0 1 1-2 0V9H1a1 1 0 0 1 0-2h6V1a1 1 0 0 1 1-1z"/>
+                </svg>
+                New Thread
+                <div class="thread-shortcut">⌘K</div>
+            </div>
+            <div class="nav-item active">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M2 13.5V7h1v6.5a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5V7h1v6.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 13.5zm11-11V6l-2-2V2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5z"/>
+                    <path fill-rule="evenodd" d="M7.293 1.5a1 1 0 0 1 1.414 0l6.647 6.646a.5.5 0 0 1-.708.708L8 2.207 1.354 8.854a.5.5 0 1 1-.708-.708L7.293 1.5z"/>
+                </svg>
+                Home
+            </div>
+            <div class="nav-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 16.016a7.5 7.5 0 0 0 1.962-14.74A1 1 0 0 0 9 0H7a1 1 0 0 0-.962 1.276A7.5 7.5 0 0 0 8 16.016zm6.5-7.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/>
+                    <path d="m6.94 7.44 4.95-2.83-2.83 4.95-4.949 2.83 2.828-4.95z"/>
+                </svg>
+                Discover
+            </div>
+            <div class="nav-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M6 1v3H1V1h5zM1 0a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1H1zm14 12v3h-5v-3h5zm-5-1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-5zM6 8v7H1V8h5zM1 7a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1H1zm14-6v7h-5V1h5zm-5-1a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1h-5z"/>
+                </svg>
+                Spaces
+            </div>
+            <div class="nav-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M5 10.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5zm0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/>
+                    <path d="M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-1h1v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v1H1V2a2 2 0 0 1 2-2z"/>
+                    <path d="M1 5v-.5a.5.5 0 0 1 1 0V5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1H1zm0 3v-.5a.5.5 0 0 1 1 0V8h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1H1zm0 3v-.5a.5.5 0 0 1 1 0v.5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1H1z"/>
+                </svg>
+                Library
+            </div>
+            <div class="library-items">
+                <div class="library-item">How will the potential impacts...</div>
+                <div class="library-item">How to use BERT to detect...</div>
+            </div>
+            <div class="user-section">
+                <div class="user-avatar">M</div>
+                <div class="user-info">
+                    <div class="user-name">myladyyang1</div>
+                </div>
+                <div class="settings-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="report-container">
+                <div class="report-header">
+                    <h1 class="report-title">How will the potential implementation of new U.S. tariffs on European pharmaceuticals impact major drug stocks and healthcare sector valuations</h1>
+                    
+                    <div class="report-tabs">
+                        <div class="report-tab active">Answer</div>
+                        <div class="report-tab">Sources <span>33</span></div>
+                    </div>
+                    
+                    <div class="report-stats">
+                        <span>14 tasks</span>
+                    </div>
+                    
+                    <div class="upgrade-banner">
+                        <div class="upgrade-text">
+                            Your answer was upgraded to Pro Search
+                            <br>
+                            Pro considers 3x more sources. Subscribe to increase your daily limit.
+                            <br>
+                            2 enhanced queries remaining today.
+                        </div>
+                        <div>
+                            <button class="upgrade-button">Upgrade</button>
+                            <button class="close-button">×</button>
+                        </div>
+                    </div>
+                    
+                    <div class="source-cards">
+                        <div class="source-card">
+                            <div class="source-card-header">
+                                <div class="source-logo">
+                                    <img src="https://logo.clearbit.com/reuters.com" alt="Reuters">
+                                </div>
+                                <span>reuters</span>
+                            </div>
+                            <div class="source-content">
+                                <div class="source-title">Exclusive: US pharma tariffs would raise U.S. healthcare costs</div>
+                            </div>
+                        </div>
+                        
+                        <div class="source-card">
+                            <div class="source-card-header">
+                                <div class="source-logo">
+                                    <img src="https://logo.clearbit.com/nytimes.com" alt="NY Times">
+                                </div>
+                                <span>nytimes</span>
+                            </div>
+                            <div class="source-content">
+                                <div class="source-title">Europe's Pharma industry braces for tariff impact</div>
+                            </div>
+                        </div>
+                        
+                        <div class="source-card">
+                            <div class="source-card-header">
+                                <div class="source-logo">
+                                    <img src="https://logo.clearbit.com/pharmaceutical-technology.com" alt="Pharma Tech">
+                                </div>
+                                <span>Pharmaceutical Technology</span>
+                            </div>
+                            <div class="source-content">
+                                <div class="source-title">Big pharma pushes for European policy change as tariffs loom</div>
+                            </div>
+                        </div>
+                        
+                        <div class="source-card">
+                            <div class="source-card-header">
+                                <div class="source-logo">
+                                    <img src="https://logo.clearbit.com/bloomberg.com" alt="Bloomberg">
+                                </div>
+                                <span>bloomberg</span>
+                            </div>
+                            <div class="source-content">
+                                <div class="source-title">+30 sources</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-content">
+                    <div class="report-section">
+                        <p>The potential implementation of new U.S. tariffs on European pharmaceuticals is expected to create significant financial and operational challenges for the healthcare sector, with mixed impacts on drug stocks and valuations. Here's a breakdown of key implications:</p>
+                    </div>
+
+                    <div class="report-section">
+                        <h2 class="section-title">Immediate Cost Increases and Market Volatility</h2>
+                        <div class="bullet-point">
+                            U.S. drug costs could rise by nearly $51 billion annually if a 25% tariff is imposed, driven by higher import expenses for pharmaceuticals, which totaled $203 billion in 2023 <a href="#" class="info-link">ℹ️</a>
+                        </div>
+                        <div class="bullet-point">
+                            European imports account for 73% of these, including blockbuster drugs like Ozempic, cancer therapies, and vaccines <a href="#" class="info-link">ℹ️</a>
+                        </div>
+                        <div class="bullet-point">
+                            Pharmaceutical stocks have already shown volatility in response to tariff threats. In April 2023, U.S. drugmakers (e.g., Amgen, Pfizer, Merck) saw premarket declines of 3-6%, while European healthcare stocks hit multi-year lows <a href="#" class="info-link">ℹ️</a>
+                        </div>
+                    </div>
+
+                    <div class="report-section">
+                        <h2 class="section-title">Strategic Shifts in Production and Investment</h2>
+                        <div class="bullet-point">
+                            Relocation of manufacturing to the U.S. is a likely response. Companies like Novo Nordisk and Roche are considering expanding U.S. production to avoid tariffs, aligning with Trump's goal of reshoring critical drug manufacturing <a href="#" class="info-link">ℹ️</a>. However, analysts question the feasibility of rapid shifts due to complex supply chains <a href="#" class="info-link">ℹ️</a>
+                        </div>
+                        <div class="bullet-point">
+                            European policy changes are being demanded by pharma firms. A coalition of 32 companies (including Eli Lilly and AstraZeneca) has threatened to redirect €16.5 billion in planned European investments to the U.S. unless the EU simplifies regulations and extends intellectual property protections <a href="#" class="info-link">ℹ️</a>
+                        </div>
+                    </div>
+
+                    <div class="report-section">
+                        <h2 class="section-title">Sector-Specific Risks and Opportunities</h2>
+                        <div class="bullet-point">
+                            Vulnerability of top-selling drugs: Merck's Keytruda (a $30B/year cancer drug) and insulin products face supply chain disruptions if tariffs disrupt imports. Companies with domestic production capabilities may gain a competitive edge <a href="#" class="info-link">ℹ️</a>
+                        </div>
+                        <div class="bullet-point">
+                            EBITDA margin compression: Rising costs for medical supplies and API imports could reduce profitability, particularly for generics and hospitals. Mercer estimates a 10-15% spike in pharmaceutical and hospital costs if tariffs are enacted <a href="#" class="info-link">ℹ️</a>
+                        </div>
+                        <div class="bullet-point">
+                            Defensive sector resilience: Historically, healthcare stocks have outperformed during trade tensions (e.g., +6.8% S&P Healthcare returns in 2018) <a href="#" class="info-link">ℹ️</a>. However, prolonged tariffs may test this trend due to unprecedented supply chain complexity <a href="#" class="info-link">ℹ️</a>
+                        </div>
+                    </div>
+
+                    <div class="report-section">
+                        <h2 class="section-title">Long-Term Valuation Pressures</h2>
+                        <div class="bullet-point">
+                            M&A activity may slow as buyers factor in tariff-related risks. Higher costs and regulatory uncertainty could compress valuation multiples, particularly for firms reliant on transatlantic trade <a href="#" class="info-link">ℹ️</a>
+                        </div>
+                        <div class="bullet-point">
+                            Investor sentiment is divided: While some view healthcare stocks as undervalued due to their defensive nature, others anticipate volatility from tariff escalation and FDA workforce reductions <a href="#" class="info-link">ℹ️</a>
+                        </div>
+                    </div>
+
+                    <div class="report-section">
+                        <h2 class="section-title">Summary</h2>
+                        <p>The tariffs would likely:</p>
+                        <ol>
+                            <li><strong>Short-term:</strong> Trigger stock volatility and cost increases, pressuring margins for import-dependent firms.</li>
+                            <li><strong>Medium-term:</strong> Accelerate U.S. manufacturing investments, benefiting companies with flexible supply chains.</li>
+                            <li><strong>Long-term:</strong> Reshape global pharma trade dynamics, with potential regulatory reforms in Europe and margin pressures across the healthcare sector.</li>
+                        </ol>
+                        <p>Companies that adapt quickly to localized production may stabilize valuations, while those unable to pivot could face sustained headwinds. Investors should monitor regulatory responses and supply chain diversification efforts closely.</p>
+                    </div>
+
+                    <div class="related-section">
+                        <h2 class="section-title">Related</h2>
+                        
+                        <div class="related-item">
+                            <div class="related-title">How might European pharmaceutical companies respond to the tariffs</div>
+                            <div class="expand-icon">+</div>
+                        </div>
+                        
+                        <div class="related-item">
+                            <div class="related-title">What are the potential long-term effects on drug prices in the U.S</div>
+                            <div class="expand-icon">+</div>
+                        </div>
+                        
+                        <div class="related-item">
+                            <div class="related-title">Could this tariff implementation lead to a shift in pharmaceutical production to the U.S</div>
+                            <div class="expand-icon">+</div>
+                        </div>
+                    </div>
+
+                    <div class="actions-bar">
+                        <button class="action-button">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8.53 3.47a.75.75 0 0 0-1.06 0l-4.5 4.5a.75.75 0 0 0 0 1.06l4.5 4.5a.75.75 0 1 0 1.06-1.06L4.81 8l3.72-3.72a.75.75 0 0 0 0-1.06z"/>
+                            </svg>
+                            Share
+                        </button>
+                        
+                        <button class="action-button">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M13 7H3a1 1 0 0 0 0 2h10a1 1 0 0 0 0-2z"/>
+                            </svg>
+                            Export
+                        </button>
+                        
+                        <button class="action-button">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M11.0355339,10.6213203 L6.35355339,5.93933983 C6.15829124,5.74407768 5.84170876,5.74407768 5.64644661,5.93933983 C5.45118446,6.13460198 5.45118446,6.45118446 5.64644661,6.64644661 L10.3284271,11.3284271 C10.5236893,11.5236893 10.8402718,11.5236893 11.0355339,11.3284271 C11.2307961,11.133165 11.2307961,10.8165825 11.0355339,10.6213203 Z"/>
+                                <path d="M11.0355339,5.93933983 C10.8402718,5.74407768 10.5236893,5.74407768 10.3284271,5.93933983 L5.64644661,10.6213203 C5.45118446,10.8165825 5.45118446,11.133165 5.64644661,11.3284271 C5.84170876,11.5236893 6.15829124,11.5236893 6.35355339,11.3284271 L11.0355339,6.64644661 C11.2307961,6.45118446 11.2307961,6.13460198 11.0355339,5.93933983 Z"/>
+                            </svg>
+                            Rewrite
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="floating-input">
+        <div class="input-container">
+            <input type="text" class="input-field" placeholder="Ask anything...">
+            <div class="input-actions">
+                <button class="input-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                    </svg>
+                </button>
+                <button class="input-button send">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // 获取URL参数
+            const urlParams = new URLSearchParams(window.location.search);
+            const question = urlParams.get('question');
+            
+            // 如果存在问题参数，更新标题
+            if (question) {
+                document.querySelector('.report-title').textContent = question;
+                document.title = question + " - Climate AI";
+            }
+            
+            // 点击相关问题处理
+            const relatedItems = document.querySelectorAll('.related-item');
+            relatedItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const relatedQuestion = this.querySelector('.related-title').textContent;
+                    document.querySelector('.report-title').textContent = relatedQuestion;
+                    document.title = relatedQuestion + " - Climate AI";
+                    
+                    // 更新URL参数但不刷新页面
+                    const url = new URL(window.location);
+                    url.searchParams.set('question', relatedQuestion);
+                    window.history.pushState({}, '', url);
+                });
+            });
+            
+            // 返回主页面
+            document.querySelector('.top-header-title').addEventListener('click', function() {
+                window.location.href = '../index.html';
+            });
+            
+            // 侧边栏导航功能
+            document.querySelector('.logo').addEventListener('click', function() {
+                window.location.href = '../index.html';
+            });
+            
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    // 移除所有nav-item的active类
+                    document.querySelectorAll('.nav-item').forEach(nav => {
+                        nav.classList.remove('active');
+                    });
+                    
+                    // 给当前点击的item添加active类
+                    this.classList.add('active');
+                    
+                    // 如果点击的是Home，返回主页
+                    if (this.textContent.trim() === 'Home') {
+                        window.location.href = '../index.html';
+                    }
+                });
+            });
+            
+            // 关闭升级提示框
+            document.querySelector('.close-button').addEventListener('click', function() {
+                document.querySelector('.upgrade-banner').style.display = 'none';
+            });
+            
+            // 标签页切换
+            const tabs = document.querySelectorAll('.report-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html> 
