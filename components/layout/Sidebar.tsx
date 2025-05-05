@@ -1,4 +1,5 @@
-import React from "react";
+"use client";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Sidebar as ShadcnSidebar,
@@ -11,7 +12,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { HomeIcon, ChartBarIcon, FolderIcon, SettingsIcon } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { HomeIcon, FolderIcon, SettingsIcon } from "lucide-react";
+import { Research } from "@/types/chat";
+
+
+
+
 
 interface SidebarItem {
   id: string;
@@ -28,12 +35,6 @@ const sidebarItems: SidebarItem[] = [
     href: "/",
   },
   {
-    id: "research",
-    label: "研究报告",
-    icon: ChartBarIcon,
-    href: "/research",
-  },
-  {
     id: "myspace",
     label: "个人空间",
     icon: FolderIcon,
@@ -48,6 +49,24 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 export function Sidebar() {
+
+  const [recentResearch, setRecentResearch] =  useState<Research[]>([]);
+  const {  status } = useSession();
+  const isAuthenticated = status === "authenticated";
+
+  const getRecentResearch = async () => {
+    const response = await fetch("/api/research");
+    const data = await response.json();
+    return data.research;
+  }
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      getRecentResearch().then(setRecentResearch);
+    }
+  }, [isAuthenticated]);
+
+
   return (
     <ShadcnSidebar className="sidebar" collapsible="offcanvas">
       <SidebarContent className="mt-10">
@@ -78,26 +97,18 @@ export function Sidebar() {
           <SidebarGroupLabel className="text-sm font-medium text-muted-foreground mb-3">最近研究</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+              {recentResearch.map((research) => (
+                <SidebarMenuItem key={research.id}>
+                  <SidebarMenuButton asChild>
                   <Link 
-                    href="/research/climate-change-2023" 
+                    href={`/research/${research.id}`} 
                     className="flex items-center px-3 py-2 text-sm rounded-md hover:bg-accent"
                   >
-                    气候变化趋势分析 2023
+                    {research.title}
                   </Link>
                 </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link 
-                    href="/research/renewable-energy" 
-                    className="flex items-center px-3 py-2 text-sm rounded-md hover:bg-accent"
-                  >
-                    可再生能源发展报告
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

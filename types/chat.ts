@@ -137,6 +137,10 @@ export interface ResearchReportProps {
   isComplete?: boolean;
   isContentComplete?: boolean;
   status?: string;
+  // 版本相关
+  versions?: number[];
+  currentVersion?: number;
+  onVersionChange?: (version: number) => void;
   // 回调函数
   onSendFollowup?: (msg: string, files?: UploadedFile[], model?: string, source?: string) => void;
   onExport?: () => void;
@@ -162,6 +166,8 @@ export interface ResearchResult {
   summary?: string;
   data?: string;
   status?: string; // 研究的当前状态
+  isComplete: boolean; // 是否完成生成
+  progress?: number; // 生成进度，0-100
   createdAt: string;
   updatedAt?: string;
   questionId: string;
@@ -185,3 +191,14 @@ export type Research = {
   createdAt?: string;
   updatedAt?: string;
 };
+
+
+export interface Data {
+  id: string;
+  content: string;
+  dataType: string;
+  isComplete: boolean;
+  createdAt: string;
+  updatedAt: string;
+  resultId: string;
+}

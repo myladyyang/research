@@ -41,7 +41,9 @@ export function useResearchManager() {
         version: 1,
         createdAt: new Date().toISOString(),
         questionId: prevReport.currentQuestion?.id || "",
-        researchId: prevReport.id
+        researchId: prevReport.id,
+        isComplete: false,
+        progress: 0
       } as ResearchResult;
       
       // 更新结果
@@ -75,10 +77,11 @@ export function useResearchManager() {
       // 更新报告内容
       updateCurrentResult(currentResult => ({
         ...currentResult,
-        markdownContent: contentBufferRef.current
+        markdownContent: contentBufferRef.current,
+        isComplete: false
       }));
       
-      console.log(`内容已更新，当前长度: ${contentBufferRef.current.length}`);
+      //console.log(`内容已更新，当前长度: ${contentBufferRef.current.length}`);
     }
     
     if (chunk.sources) {
@@ -88,9 +91,9 @@ export function useResearchManager() {
           ...prevReport || {},
           sources: chunk.sources
         }) as Research);
-        console.log(`已更新sources数据，长度: ${chunk.sources.length}`);
+        //console.log(`已更新sources数据，长度: ${chunk.sources.length}`);
       } else {
-        console.log(`忽略空的sources数据`);
+        //console.log(`忽略空的sources数据`);
       }
     }
     
@@ -102,22 +105,23 @@ export function useResearchManager() {
           ...prevReport || {},
           related: chunk.related
         }) as Research);
-        console.log(`已更新related数据，长度: ${chunk.related.length}`);
+        //console.log(`已更新related数据，长度: ${chunk.related.length}`);
       } else {
-        console.log(`忽略空的related数据`);
+        //console.log(`忽略空的related数据`);
       }
     }
 
     if (chunk.status) {
-      console.log(`收到status数据:`, JSON.stringify(chunk.status, null, 2));
+      //console.log(`收到status数据:`, JSON.stringify(chunk.status, null, 2));
       updateCurrentResult(currentResult => ({
         ...currentResult,
         status: chunk.status
       }));
     }
+    
 
     if (chunk.data) {
-      console.log("收到data数据:", chunk.data);
+      //console.log("收到data数据:", chunk.data);
       updateCurrentResult(currentResult => ({
         ...currentResult,
         data: chunk.data
@@ -128,22 +132,20 @@ export function useResearchManager() {
       // 完成流式传输
       console.log('研究报告生成完成');
       
+      updateCurrentResult(currentResult => ({
+        ...currentResult,
+        status: 'complete',
+        isComplete: true
+      }));
+      
       setReport(prevReport => {
         if (!prevReport) return null;
-        
-        // 更新当前结果为完成状态
-        const updatedCurrentResult = {
-          ...(prevReport.currentResult || {}),
-          status: 'complete',
-        } as ResearchResult;
-        
-        // 更新报告完成状态
         return {
           ...prevReport,
-          isComplete: true,
-          currentResult: updatedCurrentResult
+          isComplete: true
         };
       });
+
       
       // 断开SSE连接
       disconnectSSE();
@@ -153,8 +155,7 @@ export function useResearchManager() {
   // 连接SSE并启动流程
   const connectSSE = useCallback(() => {
     try {
-      console.log("===== 使用researchService启动流式处理 =====");
-      
+      //console.log("===== 使用researchService启动流式处理 =====");
       
       // 断开任何现有的SSE连接
       if (abortControllerRef.current) {
@@ -163,12 +164,16 @@ export function useResearchManager() {
         abortControllerRef.current = null;
       }
       
-      // 重置内容缓冲区
-      contentBufferRef.current = "";
-      console.log("内容缓冲区已重置");
-            
+      // 保留已有内容，而不是重置
+      if (!contentBufferRef.current && report?.currentResult?.markdownContent) {
+        contentBufferRef.current = report.currentResult.markdownContent;
+        //console.log("使用已有内容初始化缓冲区，长度:", contentBufferRef.current.length);
+      } else {
+        //console.log("使用现有缓冲区，长度:", contentBufferRef.current.length);
+      }
+      
       // 使用researchService启动流式请求
-      console.log("调用researchService.streamResearch... with currentReportId:", currentReportId);
+      //console.log("调用researchService.streamResearch... with currentReportId:", currentReportId);
       if (currentReportId) {
         const streamResponse = researchService.streamResearch(
           currentReportId,
@@ -177,15 +182,15 @@ export function useResearchManager() {
       
       // 保存中止函数，以便之后可以中止请求
       abortControllerRef.current = streamResponse.abort;
-      console.log("SSE连接已初始化，abort函数已保存");
-      }else{
-        console.log("没有报告ID，无法启动SSE连接");
+      //console.log("SSE连接已初始化，abort函数已保存");
+      } else {
+        //console.log("没有报告ID，无法启动SSE连接");
       }
       
     } catch (error) {
       console.error("创建SSE连接失败:", error);
     }
-  }, [currentReportId, handleStreamChunk]);
+  }, [currentReportId, handleStreamChunk, report]);
 
 
 
@@ -203,12 +208,14 @@ export function useResearchManager() {
   
   // 创建闭包对象，封装所有功能
   return {
-    load(reportId: string)  {
+    load(reportId: string): Promise<Research> {
+      console.log("load reportId", reportId);
       return new Promise((resolve, reject) => {
         if (reportId) {
           researchService.getResearch(reportId).then(report => {
             setReport(report);
             setCurrentReportId(reportId);
+            console.log("load report", report);
             resolve(report);
           }).catch(error => {
             reject(error);
@@ -227,7 +234,9 @@ export function useResearchManager() {
       date: report?.date,
       isComplete: !!report?.isComplete,
       fetch: connectSSE,
-      status: report?.currentResult?.status || ""
+      status: report?.currentResult?.status || "",
+      results: report?.results || [],
+      currentResult: report?.currentResult
     },
     
     // 参考来源相关方法

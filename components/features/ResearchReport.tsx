@@ -98,6 +98,9 @@ export function ResearchReport({
   isLoading = false,
   isContentComplete = false,
   onExport,
+  versions = [],
+  currentVersion,
+  onVersionChange,
 }: ResearchReportProps) {
   // 内容节点的前一个状态，用于对比新内容
   const previousContentRef = useRef<string>("");
@@ -318,6 +321,22 @@ export function ResearchReport({
           <span>生成时间: {date}</span>
           <span>来源: {sources.length} 个数据源</span>
           {isLoading && <span className="text-primary animate-pulse">正在更新...</span>}
+          
+          {/* 版本选择器 */}
+          {versions.length > 1 && (
+            <div className="flex items-center gap-2">
+              <span>版本:</span>
+              <select 
+                className="bg-background border border-input rounded px-2 py-1"
+                value={currentVersion}
+                onChange={(e) => onVersionChange && onVersionChange(Number(e.target.value))}
+              >
+                {versions.sort().map(version => (
+                  <option key={version} value={version}>V{version}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -381,8 +400,8 @@ export function ResearchReport({
           <div className="content-container mb-12">
             <h2 className="text-2xl font-semibold mb-6">参考来源</h2>
             <ul className="space-y-3">
-              {sources.map((source) => (
-                <li key={source.id} className="animate-in fade-in-50 duration-300" style={{ animationDelay: `${parseInt(source.id) * 100}ms` }}>
+              {sources.map((source, index) => (
+                <li key={source.id} className="animate-in fade-in-50 duration-300" style={{ animationDelay: `${index * 100}ms` }}>
                   <a
                     href={source.url}
                     target="_blank"
@@ -390,7 +409,7 @@ export function ResearchReport({
                     className="text-base hover:underline text-primary flex items-center group"
                   >
                     <span className="w-7 h-7 flex items-center justify-center rounded-full bg-primary/10 text-primary mr-3 text-xs font-semibold group-hover:bg-primary group-hover:text-white transition-colors">
-                      {source.id}
+                      {index + 1}
                     </span>
                     {source.title} - <span className="ml-1 text-muted-foreground">{source.source}</span>
                   </a>

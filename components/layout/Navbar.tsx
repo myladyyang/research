@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { ThemeSwitcher } from "@/components/layout/ThemeSwitcher";
@@ -14,11 +14,25 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
-import { BookOpenIcon, LayoutDashboardIcon, BellIcon, SettingsIcon, LogOutIcon, LogInIcon, UserPlusIcon } from "lucide-react";
+import { LayoutDashboardIcon, BellIcon, SettingsIcon, LogOutIcon, LogInIcon, UserPlusIcon } from "lucide-react";
+import { Research } from "@/types/chat";
 
 export function Navbar() {
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated";
+
+  const [myResearch, setMyResearch] = useState<Research[]>([]);
+  const getMyResearch = async () => {
+    const response = await fetch("/api/research");
+    const data = await response.json();
+    return data.research;
+  }
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      getMyResearch().then(setMyResearch);
+    }
+  }, [isAuthenticated]);
 
   return (
     <div className="flex items-center h-full w-full ">
@@ -34,47 +48,32 @@ export function Navbar() {
         <NavigationMenu className=" md:flex">
           <NavigationMenuList>
             <NavigationMenuItem>
-              <Link href="/" legacyBehavior passHref>
-                <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+              <Link href="/"  passHref>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
                   <span>首页</span>
                 </NavigationMenuLink>
               </Link>
             </NavigationMenuItem>
-          
+                
             <NavigationMenuItem>
               <NavigationMenuTrigger>
                 <span className="flex items-center gap-2">
-                  <BookOpenIcon size={16} />
-                  <span>研究</span>
+                  <LayoutDashboardIcon size={16} />
+                  <span>我的空间</span>
                 </span>
               </NavigationMenuTrigger>
               <NavigationMenuContent>
                 <div className="p-4 w-[280px]">
-                  <Link href="/research" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
-                    <div className="text-sm font-medium leading-none">研究报告</div>
-                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                      浏览气候研究与报告
-                    </p>
-                  </Link>
-                  <Link href="/research/climate-change-2023" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
-                    <div className="text-sm font-medium leading-none">气候变化趋势分析</div>
-                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                      2023年度报告
-                    </p>
-                  </Link>
+                  {myResearch.map((research) => (
+                    <Link href={`/research/${research.id}`} key={research.id} className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
+                      <div className="text-sm font-medium leading-none">{research.title}</div>
+                      <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                        {research.questions?.[0]?.question || "无问题"}
+                      </p>
+                    </Link>
+                  ))}
                 </div>
               </NavigationMenuContent>
-            </NavigationMenuItem>
-            
-            <NavigationMenuItem>
-              <Link href="/myspace"  passHref>
-                <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                  <span className="flex items-center gap-2">
-                    <LayoutDashboardIcon size={16} />
-                    <span>我的空间</span>
-                  </span>
-                </NavigationMenuLink>
-              </Link>
             </NavigationMenuItem>
           </NavigationMenuList>
         </NavigationMenu>

@@ -7,13 +7,13 @@ export type StreamResponse = {
   abort: () => void;
 };
 
-export type StreamChunk = {
+export interface StreamChunk {
   content?: string;
   sources?: Source[];
   related?: RelatedItem[];
+  status?: string;
   data?: string;
-  status?: 'start research' | 'searching' | 'collecting data' | 'analyzing sources' | 'processing' | 'complete' | 'error';
-};
+}
 
 /**
  * 研究服务
@@ -227,7 +227,8 @@ class ResearchService {
           }
         });
         
-        eventSource.addEventListener('complete', () => {
+        eventSource.addEventListener('complete', (event: MessageEvent) => {
+          console.log('收到complete事件:', event.data);
           try {
             if (onChunk) {
               onChunk({

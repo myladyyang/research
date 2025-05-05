@@ -6,10 +6,12 @@ import { WeatherCard, NewsCard } from "@/components/ui/InfoCard";
 import { Button } from "@/components/ui/Button";
 import { UploadedFile } from "@/types/chat";
 import { useState } from "react";
-
+import { useSession } from "next-auth/react";
 export default function Home() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
 
   // 直接调用API创建研究报告
   const handleQuestionSubmit = async (message: string, files?: UploadedFile[], model?: string, source?: string) => {
@@ -17,6 +19,12 @@ export default function Home() {
     
     setIsSubmitting(true);
     
+
+    if (!isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+
     try {
 
       // 调用API创建研究报告

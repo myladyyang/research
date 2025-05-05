@@ -119,17 +119,35 @@ model ResearchResult {
   version         Int // 结果的版本号
   markdownContent String?   @db.Text
   summary         String?   @db.Text
-  data            String?   @db.Text
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  status          String? // 研究的当前状态
+  status          String? // 研究的当前状态  
+  isComplete      Boolean   @default(false) // 是否完成
+  progress        Int?      // 生成进度0-100
   // 关联
   researchId      String?
   research        Research? @relation(fields: [researchId], references: [id])
   questionId      String    @unique // 每个问题只有一个结果
   question        Question  @relation(fields: [questionId], references: [id])
+  data            Data?     // 关联到数据可视化内容
 
   @@map("research_results")
+}
+
+// 数据可视化模型 - 存储图表和数据分析内容
+model Data {
+  id          String   @id @default(cuid())
+  content     String   @db.Text // 图表和数据可视化内容
+  dataType    String   // 数据类型 (例如: chart, table, stats)
+  isComplete  Boolean  @default(false) // 是否完成生成
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关联
+  resultId    String   @unique // 每个研究结果只有一组数据可视化
+  result      ResearchResult @relation(fields: [resultId], references: [id])
+
+  @@map("research_data")
 }
 
 // 来源模型

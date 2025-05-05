@@ -8,8 +8,6 @@ import { Research } from "@/types/chat";
 import Link from "next/link";
 import { 
   ChartLineIcon, 
-  BookIcon, 
-  FlaskRoundIcon, 
   PlusIcon, 
   Loader2Icon, 
   AlertTriangleIcon,
@@ -59,10 +57,10 @@ export default function MySpacePage() {
   // 加载状态
   if (status === "loading" || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center min-h-[50vh]">
         <div className="flex flex-col items-center">
-          <Loader2Icon className="h-12 w-12 text-primary animate-spin" />
-          <h2 className="mt-4 text-xl font-medium text-gray-700">加载中...</h2>
+          <Loader2Icon className="h-10 w-10 text-primary animate-spin" />
+          <h2 className="mt-4 text-lg font-medium text-gray-700">加载中...</h2>
         </div>
       </div>
     );
@@ -74,15 +72,15 @@ export default function MySpacePage() {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen w-full">
-      {/* 头部区域 */}
-      <div className="bg-white border-b">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+    <div className="bg-background min-h-full w-full pb-8">
+      {/* 页面标题 */}
+      <div className="bg-white border-b mb-8">
+        <div className="w-full px-4 sm:px-6 py-4">
           <h1 className="text-2xl font-bold text-gray-900">我的空间</h1>
         </div>
       </div>
 
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full px-4 sm:px-6">
         {/* 错误提示 */}
         {error && (
           <div className="mb-8 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
@@ -165,61 +163,6 @@ export default function MySpacePage() {
           )}
         </div>
 
-        {/* 私人知识库部分 */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center">
-              <BookIcon className="h-6 w-6 text-primary mr-2" />
-              <h2 className="text-xl font-semibold text-gray-900">我的知识库</h2>
-            </div>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors">
-              <PlusIcon className="h-4 w-4 mr-2" />
-              创建知识库
-            </button>
-          </div>
-
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex items-center justify-center flex-col py-8">
-              <BookIcon className="h-12 w-12 text-gray-300 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">暂无知识库</h3>
-              <p className="text-sm text-gray-500 mb-4 max-w-md text-center">
-                知识库帮助您组织和存储重要信息，提高研究和分析的效率
-              </p>
-              <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors">
-                <PlusIcon className="h-4 w-4 mr-2" />
-                创建知识库
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 分析模型部分 */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center">
-              <FlaskRoundIcon className="h-6 w-6 text-primary mr-2" />
-              <h2 className="text-xl font-semibold text-gray-900">我的分析模型</h2>
-            </div>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors">
-              <PlusIcon className="h-4 w-4 mr-2" />
-              创建模型
-            </button>
-          </div>
-
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex items-center justify-center flex-col py-8">
-              <FlaskRoundIcon className="h-12 w-12 text-gray-300 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">暂无分析模型</h3>
-              <p className="text-sm text-gray-500 mb-4 max-w-md text-center">
-                使用分析模型处理复杂数据，获取深度洞见和预测
-              </p>
-              <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors">
-                <PlusIcon className="h-4 w-4 mr-2" />
-                创建模型
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

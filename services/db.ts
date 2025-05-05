@@ -25,7 +25,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // 从types/chat导入接口
-import { ResearchQuestion,  UploadedFile, Research, Source, RelatedItem } from '../types/chat';
+import { ResearchQuestion,  UploadedFile, Research, Source, RelatedItem, ResearchResult, Data } from '../types/chat';
 
 /**
  * 基础的数据库操作包装器 - 仅服务端使用
@@ -145,10 +145,10 @@ export class DbService {
   /**
    * 获取研究报告及其关联数据
    */
-  async getResearch(id: string) {
+  async getResearch(id: string): Promise<Research> {
     this.ensureServerSide();
     
-    return prisma.research.findUnique({
+    const db_research = await prisma.research.findUnique({
       where: { id },
       include: {
         questions: {
@@ -166,6 +166,50 @@ export class DbService {
         File: true,
       },
     });
+
+    if (!db_research) {
+      throw new Error('Research not found');
+    }
+
+    return {
+      id: db_research.id,
+      title: db_research.title,
+      isComplete: db_research.isComplete,
+      date: db_research.createdAt.toISOString(),
+      createdAt: db_research.createdAt.toISOString(),
+      updatedAt: db_research.updatedAt.toISOString(),
+      results: db_research.results.map(r => ({
+        id: r.id,
+        version: r.version,
+        isComplete: r.isComplete,
+        markdownContent: r.markdownContent || undefined,
+        summary: r.summary || undefined,
+        status: r.status || undefined,
+        progress: r.progress || undefined,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+        questionId: r.questionId,
+        researchId: r.researchId
+      })),
+      questions: db_research.questions.map(q => ({
+        id: q.id,
+        question: q.content,
+        model: q.model || undefined,
+        createdAt: q.createdAt.toISOString(),
+        updatedAt: q.updatedAt.toISOString(),
+        files: q.files.map(f => ({
+          id: f.id,
+          fileId: f.fileId,
+          name: f.name,
+          size: f.size,
+          type: f.type,
+          url: f.url || ''
+        }))
+      })),
+      sources: db_research.sources,
+      related: db_research.related,
+      tags: db_research.tags.map(t => t.name)
+    };
   }
 
   /**
@@ -173,9 +217,10 @@ export class DbService {
    */
   async updateResearchResult(resultId: string, data: {
     markdownContent?: string;
-    data?: string;
     summary?: string;
     status?: string;
+    isComplete?: boolean;
+    progress?: number;
   }) {
     this.ensureServerSide();
     
@@ -350,6 +395,9 @@ export class DbService {
           },
         },
         results: {
+          include: {
+            data: true,
+          },
           orderBy: {
             version: 'desc',
           },
@@ -424,8 +472,8 @@ export class DbService {
           version: lastResult.version,
           markdownContent: lastResult.markdownContent || undefined,
           summary: lastResult.summary || undefined,
-          data: lastResult.data || undefined,
           status: lastResult.status || undefined,
+          isComplete: lastResult.isComplete,
           createdAt: lastResult.createdAt.toISOString(),
           updatedAt: lastResult.updatedAt.toISOString(),
           questionId: lastResult.questionId,
@@ -530,8 +578,8 @@ export class DbService {
           version: lastResult.version,
           markdownContent: lastResult.markdownContent || undefined,
           summary: lastResult.summary || undefined,
-          data: lastResult.data || undefined,
           status: lastResult.status || undefined,
+          isComplete: lastResult.isComplete,
           createdAt: lastResult.createdAt.toISOString(),
           updatedAt: lastResult.updatedAt.toISOString(),
           questionId: lastResult.questionId,
@@ -541,6 +589,78 @@ export class DbService {
 
       return result;
     });
+  }
+
+  /**
+   * 创建新版本的研究结果
+   * @param questionId 问题ID
+   * @param researchId 研究报告ID
+   * @param currentVersion 当前版本号，用于生成新版本
+   */
+  async createNewVersionResult(questionId: string, researchId: string, currentVersion: number): Promise<ResearchResult> {
+    const newVersion = currentVersion + 1;
+    
+    // 创建新的研究结果
+    const newResult: ResearchResult = {
+      id: `result-${Date.now()}`,
+      version: newVersion,
+      questionId,
+      researchId,
+      isComplete: false,
+      progress: 0,
+      createdAt: new Date().toISOString(),
+      status: '启动研究分析...'
+    };
+    
+    // 在这里添加实际的数据库插入代码
+    console.log(`创建新版本研究结果: ${newResult.id}`, newResult);
+    
+    // 例如:
+    // const savedResult = await db.researchResults.create({
+    //   data: newResult
+    // });
+    // return savedResult;
+    
+    return newResult;
+  }
+
+  /**
+   * 创建数据可视化内容
+   * @param data 数据内容
+   * @returns 创建的数据对象
+   */
+  async addDataToResearchResult(data: {
+    content: string;
+    dataType: string;
+    isComplete: boolean;
+    resultId: string;
+  }): Promise<Data> {
+    try {
+      //create data and connect to researchResult
+      const result = await prisma.data.create({
+        data: {
+          content: data.content,
+          dataType: data.dataType,
+          isComplete: data.isComplete,
+          result: {
+            connect: { id: data.resultId },
+          },
+        },
+      });
+      console.log(`创建数据可视化成功: ${result.id}`);
+      return {
+        id: result.id,
+        content: result.content,
+        dataType: result.dataType,
+        isComplete: result.isComplete,
+        createdAt: result.createdAt.toISOString(),
+        updatedAt: result.updatedAt.toISOString(),
+        resultId: result.resultId,
+      };
+    } catch (error) {
+      console.error("创建数据可视化失败:", error);
+      throw error;
+    }
   }
 }
 

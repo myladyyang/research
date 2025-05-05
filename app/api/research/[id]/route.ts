@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { dbService } from '@/services/db';
-import { RelatedItem, Source, Research } from '@/types/chat';
+import { ResearchResult } from '@/types/chat';
 
 /**
  * GET处理器 - 获取研究报告详细数据
@@ -13,116 +13,64 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    const researchId = params.id;
-
-    if (!researchId) {
-      return NextResponse.json(
-        { error: "研究ID不能为空" },
-        { status: 400 }
-      );
-    }
-
-    // 获取研究
-    const research = await dbService.getResearch(researchId);
-
-    // 检查研究是否存在
-    if (!research) {
-      return NextResponse.json(
-        { error: "研究不存在" },
-        { status: 404 }
-      );
-    }
-
-    // 检查用户是否有权限访问该研究
-    if (session?.user?.id && research.userId && research.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "没有权限访问此研究" },
-        { status: 403 }
-      );
-    }
-
-    // 转换为前端类型
-    const researchData: Research = {
-      id: research.id,
-      title: research.title,
-      date: research.createdAt.toISOString(),
-      isComplete: research.isComplete,
-      createdAt: research.createdAt.toISOString(),
-      updatedAt: research.updatedAt.toISOString(),
-      
-      // 问题列表
-      questions: research.questions.map(q => ({
-        id: q.id,
-        question: q.content,
-        model: q.model || undefined,
-        files: q.files.map(f => ({
-          id: f.id,
-          fileId: f.fileId,
-          name: f.name,
-          size: f.size,
-          type: f.type,
-          url: f.url || '',
-          createdAt: f.createdAt.toISOString(),
-          updatedAt: f.updatedAt.toISOString(),
-        })),
-        createdAt: q.createdAt.toISOString(),
-        updatedAt: q.updatedAt.toISOString(),
-      })),
-      
-      // 当前问题（最新的问题）
-      currentQuestion: research.questions.length > 0 ? {
-        id: research.questions[research.questions.length - 1].id,
-        question: research.questions[research.questions.length - 1].content,
-        model: research.questions[research.questions.length - 1].model || undefined,
-      } : undefined,
-      
-      // 结果列表
-      results: research.results.map(r => ({
-        id: r.id,
-        version: r.version,
-        markdownContent: r.markdownContent || undefined,
-        summary: r.summary || undefined,
-        data: r.data || undefined,
-        status: r.status || undefined,
-        createdAt: r.createdAt.toISOString(),
-        updatedAt: r.updatedAt.toISOString(),
-        questionId: r.questionId,
-        researchId: r.researchId,
-      })),
-      
-      // 当前结果（最新的结果）
-      currentResult: research.results.length > 0 ? {
-        id: research.results[0].id,
-        version: research.results[0].version,
-        markdownContent: research.results[0].markdownContent || undefined,
-        summary: research.results[0].summary || undefined,
-        data: research.results[0].data || undefined,
-        status: research.results[0].status || undefined,
-        createdAt: research.results[0].createdAt.toISOString(),
-        questionId: research.results[0].questionId,
-      } : undefined,
-      
-      // 其他关联数据
-      sources: research.sources as Source[],
-      related: research.related as RelatedItem[],
-      tags: research.tags.map(t => t.name),
-      files: research.File?.map(f => ({
-        id: f.id,
-        fileId: f.fileId,
-        name: f.name,
-        size: f.size,
-        type: f.type,
-        url: f.url || '',
-        createdAt: f.createdAt.toISOString(),
-        updatedAt: f.updatedAt.toISOString(),
-      })) || [],
-    };
     
-    return NextResponse.json({ research: researchData }, { status: 200 });
+    // 如果用户未登录，返回错误
+    if (!session?.user) {
+      return NextResponse.json({ error: "未授权访问" }, { status: 401 });
+    }
+    
+    const researchId = params.id;
+    
+    // 获取研究报告
+    const research = await dbService.getResearch(researchId);
+    
+    // 检查是否存在结果，以及这些结果的完成状态
+    if (research && research.results && research.results.length > 0) {
+      // 确定当前激活的结果
+      // 如果有完成的结果，选择版本号最高的完成结果
+      const completedResults = research.results.filter(r => r.isComplete);
+      
+      if (completedResults.length > 0) {
+        // 找到版本号最高的完成结果
+        const latestCompletedResult = completedResults.reduce((prev, current) => 
+          (prev.version > current.version) ? prev : current
+        );
+        
+        // 设置为当前结果
+        research.currentResult = latestCompletedResult;
+        research.isComplete = true;
+      } else {
+        // 如果没有完成的结果，选择版本号最高的未完成结果
+        const latestResult = research.results.reduce((prev, current) => 
+          (prev.version > current.version) ? prev : current
+        );
+        
+        research.currentResult = latestResult;
+        research.isComplete = false;
+      }
+    } else {
+      // 如果没有结果，创建一个初始结果
+      const initialResult: ResearchResult = {
+        id: `result-${Date.now()}`,
+        version: 1,
+        questionId: research.questions?.[0]?.id || "",
+        researchId: research.id,
+        isComplete: false,
+        progress: 0,
+        createdAt: new Date().toISOString(),
+        status: '准备开始研究...'
+      };
+      
+      research.results = [initialResult];
+      research.currentResult = initialResult;
+      research.isComplete = false;
+    }
+    
+    return NextResponse.json(research, { status: 200 });
   } catch (error) {
-    console.error("获取研究失败:", error);
+    console.error("获取研究报告失败:", error);
     return NextResponse.json(
-      { error: "获取研究失败" },
+      { error: "获取研究报告失败" },
       { status: 500 }
     );
   }
