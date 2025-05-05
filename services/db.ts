@@ -9,6 +9,11 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
+// 在服务器端检查
+if (typeof window !== 'undefined') {
+  console.error('PrismaClient只能在服务器端使用');
+}
+
 // 使用全局变量来保存 PrismaClient 实例
 export const prisma = global.prisma || new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
@@ -23,19 +28,31 @@ if (process.env.NODE_ENV !== 'production') {
 import { ResearchQuestion,  UploadedFile, Research, Source, RelatedItem } from '../types/chat';
 
 /**
- * 基础的数据库操作包装器
+ * 基础的数据库操作包装器 - 仅服务端使用
  */
 export class DbService {
   /**
+   * 确保服务端执行
+   */
+  private ensureServerSide() {
+    if (typeof window !== 'undefined') {
+      throw new Error('DbService只能在服务器端使用');
+    }
+  }
+
+  /**
    * 创建新的研究报告
    */
-  async createResearch(question: ResearchQuestion) {
+  async createResearch(question: ResearchQuestion, userId?: string) {
+    this.ensureServerSide();
+
     // 创建事务确保数据一致性
     return prisma.$transaction(async (tx) => {
       // 1. 创建研究报告
       const research = await tx.research.create({
         data: {
           title: question.question,
+          userId: userId, // 添加用户ID
         },
       });
       
@@ -45,6 +62,7 @@ export class DbService {
           content: question.question,
           model: question.model,
           researchId: research.id,
+          userId: userId, // 添加用户ID
           files: {
             create: question.files?.map(file => ({
               fileId: file.id,
@@ -74,7 +92,9 @@ export class DbService {
   /**
    * 添加新的跟进问题
    */
-  async addFollowupQuestion(researchId: string, question: ResearchQuestion) {
+  async addFollowupQuestion(researchId: string, question: ResearchQuestion, userId?: string) {
+    this.ensureServerSide();
+    
     return prisma.$transaction(async (tx) => {
       // 1. 获取该研究的问题数量，用于确定新问题的版本号
       const questionCount = await tx.question.count({
@@ -87,6 +107,7 @@ export class DbService {
           content: question.question,
           model: question.model,
           researchId,
+          userId: userId, // 添加用户ID
           files: {
             create: question.files?.map(file => ({
               fileId: file.id,
@@ -125,6 +146,8 @@ export class DbService {
    * 获取研究报告及其关联数据
    */
   async getResearch(id: string) {
+    this.ensureServerSide();
+    
     return prisma.research.findUnique({
       where: { id },
       include: {
@@ -154,6 +177,8 @@ export class DbService {
     summary?: string;
     status?: string;
   }) {
+    this.ensureServerSide();
+    
     return prisma.researchResult.update({
       where: { id: resultId },
       data,
@@ -166,6 +191,8 @@ export class DbService {
   async updateResearchStatus(id: string, data: {
     isComplete?: boolean;
   }) {
+    this.ensureServerSide();
+    
     return prisma.research.update({
       where: { id },
       data,
@@ -182,6 +209,8 @@ export class DbService {
     source: string;
     sourceIcon?: string;
   }>) {
+    this.ensureServerSide();
+    
     return prisma.research.update({
       where: { id: researchId },
       data: {
@@ -204,6 +233,8 @@ export class DbService {
     date?: string;
     description?: string;
   }>) {
+    this.ensureServerSide();
+    
     return prisma.research.update({
       where: { id: researchId },
       data: {
@@ -221,6 +252,8 @@ export class DbService {
    * 添加文件到问题
    */
   async addFilesToQuestion(questionId: string, files: UploadedFile[]) {
+    this.ensureServerSide();
+    
     return prisma.question.update({
       where: { id: questionId },
       data: {
@@ -244,6 +277,8 @@ export class DbService {
    * 添加文件到研究
    */
   async addFilesToResearch(researchId: string, files: UploadedFile[]) {
+    this.ensureServerSide();
+    
     return prisma.research.update({
       where: { id: researchId },
       data: {
@@ -267,6 +302,8 @@ export class DbService {
    * 获取问题的所有文件
    */
   async getQuestionFiles(questionId: string) {
+    this.ensureServerSide();
+    
     return prisma.file.findMany({
       where: { questionId },
     });
@@ -276,6 +313,8 @@ export class DbService {
    * 获取研究的所有文件
    */
   async getResearchFiles(researchId: string) {
+    this.ensureServerSide();
+    
     return prisma.file.findMany({
       where: { researchId },
     });
@@ -285,6 +324,8 @@ export class DbService {
    * 删除文件
    */
   async deleteFile(fileId: string) {
+    this.ensureServerSide();
+    
     return prisma.file.delete({
       where: { id: fileId },
     });
@@ -294,8 +335,10 @@ export class DbService {
    * 获取用户的所有研究报告
    */
   async getUserResearches(userId: string): Promise<Research[]> {
+    this.ensureServerSide();
+    
     const researches = await prisma.research.findMany({
-      where: { userId },
+      where: { userId }, // 确保只返回特定用户的研究
       orderBy: { createdAt: 'desc' },
       include: {
         questions: {
@@ -398,6 +441,8 @@ export class DbService {
    * 获取最近的研究报告
    */
   async getRecentResearches(limit = 10): Promise<Research[]> {
+    this.ensureServerSide();
+    
     const researches = await prisma.research.findMany({
       orderBy: { createdAt: 'desc' },
       take: limit,

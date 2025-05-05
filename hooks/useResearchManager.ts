@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Research, ResearchQuestion } from "@/types/chat";
+import { Research, ResearchQuestion, ResearchResult } from "@/types/chat";
 import { researchService, StreamChunk } from '@/services/research';
 
 
@@ -25,6 +25,45 @@ export function useResearchManager() {
     }
   }, []);
 
+  // 获取当前结果或创建一个空结果
+  // const getCurrentResult = useCallback(() => {
+  //   return report?.currentResult || {} as ResearchResult;
+  // }, [report]);
+
+  // 更新当前结果
+  const updateCurrentResult = useCallback((updateFn: (result: ResearchResult) => ResearchResult) => {
+    setReport(prevReport => {
+      if (!prevReport) return null;
+      
+      // 获取当前结果或创建新结果
+      const currentResult = prevReport.currentResult || {
+        id: "",
+        version: 1,
+        createdAt: new Date().toISOString(),
+        questionId: prevReport.currentQuestion?.id || "",
+        researchId: prevReport.id
+      } as ResearchResult;
+      
+      // 更新结果
+      const updatedResult = updateFn(currentResult);
+      
+      // 如果results数组不存在，则创建
+      const results = prevReport.results || [];
+      
+      // 查找并更新结果，或添加新结果
+      const resultIndex = results.findIndex(r => r.id === updatedResult.id);
+      const updatedResults = resultIndex >= 0 
+        ? [...results.slice(0, resultIndex), updatedResult, ...results.slice(resultIndex + 1)]
+        : [...results, updatedResult];
+      
+      return {
+        ...prevReport,
+        currentResult: updatedResult,
+        results: updatedResults
+      };
+    });
+  }, []);
+
   // 处理流式数据
   const handleStreamChunk = useCallback((chunk: StreamChunk) => {
     
@@ -34,16 +73,15 @@ export function useResearchManager() {
       contentBufferRef.current += chunk.content;
       
       // 更新报告内容
-      setReport(prevReport => ({
-        ...prevReport || {},
+      updateCurrentResult(currentResult => ({
+        ...currentResult,
         markdownContent: contentBufferRef.current
-      }) as Research);
+      }));
       
       console.log(`内容已更新，当前长度: ${contentBufferRef.current.length}`);
     }
     
     if (chunk.sources) {
-
       // 检查是否为空数组
       if (Array.isArray(chunk.sources) && chunk.sources.length > 0) {
         setReport(prevReport => ({
@@ -72,33 +110,45 @@ export function useResearchManager() {
 
     if (chunk.status) {
       console.log(`收到status数据:`, JSON.stringify(chunk.status, null, 2));
-      setReport(prevReport => ({
-        ...prevReport || {},
+      updateCurrentResult(currentResult => ({
+        ...currentResult,
         status: chunk.status
-      }) as Research);
+      }));
     }
 
     if (chunk.data) {
       console.log("收到data数据:", chunk.data);
-      setReport(prevReport => ({
-        ...prevReport || {},
+      updateCurrentResult(currentResult => ({
+        ...currentResult,
         data: chunk.data
-      }) as Research);
-
+      }));
     }
     
     if (chunk.status === 'complete') {
       // 完成流式传输
       console.log('研究报告生成完成');
-      setReport(prevReport => ({
-        ...prevReport || {},
-        complete: true
-      }) as Research);
+      
+      setReport(prevReport => {
+        if (!prevReport) return null;
+        
+        // 更新当前结果为完成状态
+        const updatedCurrentResult = {
+          ...(prevReport.currentResult || {}),
+          status: 'complete',
+        } as ResearchResult;
+        
+        // 更新报告完成状态
+        return {
+          ...prevReport,
+          isComplete: true,
+          currentResult: updatedCurrentResult
+        };
+      });
       
       // 断开SSE连接
       disconnectSSE();
     }
-  }, [disconnectSSE]);
+  }, [disconnectSSE, updateCurrentResult]);
   
   // 连接SSE并启动流程
   const connectSSE = useCallback(() => {
@@ -135,7 +185,7 @@ export function useResearchManager() {
     } catch (error) {
       console.error("创建SSE连接失败:", error);
     }
-  }, [currentReportId]);
+  }, [currentReportId, handleStreamChunk]);
 
 
 
@@ -172,12 +222,12 @@ export function useResearchManager() {
     report: {
       id: currentReportId,
       title: report?.title || "",
-      content: report?.markdownContent || "",
-      data: report?.data || "",
+      content: report?.currentResult?.markdownContent || "",
+      data: report?.currentResult?.data || "",
       date: report?.date,
-      isComplete: !!report?.complete,
+      isComplete: !!report?.isComplete,
       fetch: connectSSE,
-      status: report?.status || ""
+      status: report?.currentResult?.status || ""
     },
     
     // 参考来源相关方法
@@ -221,13 +271,24 @@ export function useResearchManager() {
           throw error; // 重新抛出异常以便调用者处理
         }
       },
+      // 获取当前问题
+      getCurrent: () => report?.currentQuestion || null,
+      // 获取所有问题
+      getAll: () => report?.questions || []
+    },
+    
+    // 结果相关方法
+    results: {
+      getCurrent: () => report?.currentResult || null,
+      getAll: () => report?.results || [],
+      count: report?.results?.length || 0
     },
     
     // 实用工具方法
     utils: {
       // 获取报告摘要（提取第一段内容）
       getSummary: () => {
-        const content = report?.markdownContent || "";
+        const content = report?.currentResult?.markdownContent || "";
         const firstParagraph = content.split('\n\n')[0];
         // 移除标题标记和换行符
         return firstParagraph

@@ -1,12 +1,17 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { dbService } from '@/services/db';
-import { ResearchQuestion, Research } from '@/types/chat';
+import { ResearchQuestion } from '@/types/chat';
 
 /**
  * POST 处理器 - 创建新的研究报告
  */
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+    
     // 解析请求体
     const body = await request.json() as ResearchQuestion;
     
@@ -18,8 +23,10 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    console.log('创建研究报告:', body);
+
     // 创建研究报告记录
-    const research = await dbService.createResearch(body);
+    const research = await dbService.createResearch(body, userId);
     
     // 返回研究报告ID
     return new Response(
@@ -41,30 +48,24 @@ export async function POST(request: NextRequest) {
 /**
  * GET 处理器 - 获取最近的研究报告列表
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // 从URL参数中获取limit
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const session = await getServerSession(authOptions);
     
-    // 获取最近的研究报告
-    const researches = await dbService.getRecentResearches(limit);
+    // 如果用户未登录，返回空数组
+    if (!session?.user) {
+      return NextResponse.json({ research: [] }, { status: 200 });
+    }
     
-    // 前端已经使用 types/chat.ts 中定义的 Research 类型
-    // dbService.getRecentResearches 方法已经将数据库结果转换为前端需要的格式
-    // 因此这里直接返回即可
-    return new Response(
-      JSON.stringify(researches),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    // 获取用户的研究
+    const research = await dbService.getUserResearches(session.user.id);
+    
+    return NextResponse.json({ research }, { status: 200 });
   } catch (error) {
-    console.error('获取研究报告列表失败:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: '处理请求时发生错误',
-        details: error instanceof Error ? error.message : String(error)
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    console.error("获取研究失败:", error);
+    return NextResponse.json(
+      { error: "获取研究失败" },
+      { status: 500 }
     );
   }
 } 

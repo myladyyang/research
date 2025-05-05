@@ -1,6 +1,8 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { dbService } from '@/services/db';
-import { RelatedItem, Source, Research, ResearchResult } from '@/types/chat';
+import { RelatedItem, Source, Research } from '@/types/chat';
 
 /**
  * GET处理器 - 获取研究报告详细数据
@@ -10,32 +12,46 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // 从params对象中获取id参数
-    const reportId = params.id;
-    console.log(`接收到研究报告数据请求: ${reportId}`);
-    
-    // 从数据库获取研究报告
-    const researchData = await dbService.getResearch(reportId);
-    
-    // 如果找不到报告，返回404
-    if (!researchData) {
-      return new Response(
-        JSON.stringify({ error: '找不到请求的研究报告' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
+    const session = await getServerSession(authOptions);
+    const researchId = params.id;
+
+    if (!researchId) {
+      return NextResponse.json(
+        { error: "研究ID不能为空" },
+        { status: 400 }
       );
     }
-    
+
+    // 获取研究
+    const research = await dbService.getResearch(researchId);
+
+    // 检查研究是否存在
+    if (!research) {
+      return NextResponse.json(
+        { error: "研究不存在" },
+        { status: 404 }
+      );
+    }
+
+    // 检查用户是否有权限访问该研究
+    if (session?.user?.id && research.userId && research.userId !== session.user.id) {
+      return NextResponse.json(
+        { error: "没有权限访问此研究" },
+        { status: 403 }
+      );
+    }
+
     // 转换为前端类型
-    const research: Research = {
-      id: researchData.id,
-      title: researchData.title,
-      date: researchData.createdAt.toISOString(),
-      isComplete: researchData.isComplete,
-      createdAt: researchData.createdAt.toISOString(),
-      updatedAt: researchData.updatedAt.toISOString(),
+    const researchData: Research = {
+      id: research.id,
+      title: research.title,
+      date: research.createdAt.toISOString(),
+      isComplete: research.isComplete,
+      createdAt: research.createdAt.toISOString(),
+      updatedAt: research.updatedAt.toISOString(),
       
       // 问题列表
-      questions: researchData.questions.map(q => ({
+      questions: research.questions.map(q => ({
         id: q.id,
         question: q.content,
         model: q.model || undefined,
@@ -54,14 +70,14 @@ export async function GET(
       })),
       
       // 当前问题（最新的问题）
-      currentQuestion: researchData.questions.length > 0 ? {
-        id: researchData.questions[researchData.questions.length - 1].id,
-        question: researchData.questions[researchData.questions.length - 1].content,
-        model: researchData.questions[researchData.questions.length - 1].model || undefined,
+      currentQuestion: research.questions.length > 0 ? {
+        id: research.questions[research.questions.length - 1].id,
+        question: research.questions[research.questions.length - 1].content,
+        model: research.questions[research.questions.length - 1].model || undefined,
       } : undefined,
       
       // 结果列表
-      results: researchData.results.map(r => ({
+      results: research.results.map(r => ({
         id: r.id,
         version: r.version,
         markdownContent: r.markdownContent || undefined,
@@ -75,22 +91,22 @@ export async function GET(
       })),
       
       // 当前结果（最新的结果）
-      currentResult: researchData.results.length > 0 ? {
-        id: researchData.results[0].id,
-        version: researchData.results[0].version,
-        markdownContent: researchData.results[0].markdownContent || undefined,
-        summary: researchData.results[0].summary || undefined,
-        data: researchData.results[0].data || undefined,
-        status: researchData.results[0].status || undefined,
-        createdAt: researchData.results[0].createdAt.toISOString(),
-        questionId: researchData.results[0].questionId,
+      currentResult: research.results.length > 0 ? {
+        id: research.results[0].id,
+        version: research.results[0].version,
+        markdownContent: research.results[0].markdownContent || undefined,
+        summary: research.results[0].summary || undefined,
+        data: research.results[0].data || undefined,
+        status: research.results[0].status || undefined,
+        createdAt: research.results[0].createdAt.toISOString(),
+        questionId: research.results[0].questionId,
       } : undefined,
       
       // 其他关联数据
-      sources: researchData.sources as Source[],
-      related: researchData.related as RelatedItem[],
-      tags: researchData.tags.map(t => t.name),
-      files: researchData.File?.map(f => ({
+      sources: research.sources as Source[],
+      related: research.related as RelatedItem[],
+      tags: research.tags.map(t => t.name),
+      files: research.File?.map(f => ({
         id: f.id,
         fileId: f.fileId,
         name: f.name,
@@ -102,29 +118,12 @@ export async function GET(
       })) || [],
     };
     
-    console.log(`返回研究报告详细数据: ${reportId}`);
-    
-    return new Response(
-      JSON.stringify(research),
-      { 
-        status: 200, 
-        headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache' 
-        } 
-      }
-    );
+    return NextResponse.json({ research: researchData }, { status: 200 });
   } catch (error) {
-    console.error("获取研究报告数据失败:", error);
-    return new Response(
-      JSON.stringify({ 
-        error: true, 
-        message: error instanceof Error ? error.message : "获取研究报告数据失败" 
-      }),
-      { 
-        status: 500, 
-        headers: { 'Content-Type': 'application/json' } 
-      }
+    console.error("获取研究失败:", error);
+    return NextResponse.json(
+      { error: "获取研究失败" },
+      { status: 500 }
     );
   }
 }
@@ -190,6 +189,32 @@ export async function PUT(
         message: error instanceof Error ? error.message : "更新研究报告失败" 
       }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+// 添加跟进问题
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+    const researchId = params.id;
+
+    // 解析请求体
+    const data = await request.json();
+
+    // 添加跟进问题
+    const result = await dbService.addFollowupQuestion(researchId, data, userId);
+
+    return NextResponse.json({ result }, { status: 201 });
+  } catch (error) {
+    console.error("添加问题失败:", error);
+    return NextResponse.json(
+      { error: "添加问题失败" },
+      { status: 500 }
     );
   }
 } 

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
+import { SessionProvider } from "@/components/auth/SessionProvider";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import "./globals.css";
 
 // 使用Inter字体替代Geist，这是Next.js支持良好的系统字体
@@ -25,18 +27,24 @@ export default function RootLayout({
       <body
         className={`${inter.variable} antialiased`}
       >
-        <div className="container">
-          <header className="top-header">
-            <Navbar userName="张三" />
-          </header>
-          <aside className="sidebar">
-            <Sidebar />
-          </aside>
-          <main className="main-content">
-            {children}
-          </main>
-        </div>
+        <SessionProvider>
+          <SidebarProvider>
+            <div className="container relative">
+              <header className="top-header z-50">
+                <Navbar />
+                <SidebarTrigger className="lg:hidden ml-2" />
+              </header>
+              <Sidebar />
+              <main className="main-content overflow-visible">
+                <div className="pt-[60px] w-full">
+                  {children}
+                </div>
+              </main>
+            </div>
+          </SidebarProvider>
+        </SessionProvider>
       </body>
     </html>
   );
 }
+

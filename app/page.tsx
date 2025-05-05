@@ -38,9 +38,9 @@ export default function Home() {
       }
       
       // 导航到研究报告页面
-      const tempId = await response.json();
-      console.log("tempId", tempId);
-      router.push(`/research/${tempId}`);
+      const {id} = await response.json();
+      console.log("tempId", id);
+      router.push(`/research/${id}`);
     } catch (error) {
       console.error("提交问题失败:", error);
       alert('创建研究报告失败，请稍后重试');

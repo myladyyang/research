@@ -16,8 +16,8 @@ export type StreamChunk = {
 };
 
 /**
- * 气候数据服务
- * 提供气候相关的API调用
+ * 研究服务
+ * 提供研究相关的API调用
  */
 class ResearchService {
   
@@ -33,6 +33,12 @@ class ResearchService {
     });
     return response.json();
   }
+
+  async getUserResearches(): Promise<Research[]> {
+    const response = await fetch('/api/research/user');
+    return response.json();
+  }
+
   /**
    * 获取研究报告
    * 

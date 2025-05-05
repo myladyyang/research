@@ -34,3 +34,30 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## 身份验证配置
+
+本项目使用NextAuth.js进行身份验证。首次使用前，需要进行如下配置：
+
+1. 复制`.env.local.example`到`.env.local`
+2. 填写环境变量：
+   ```
+   # 数据库
+   DATABASE_URL="postgresql://username:password@localhost:5432/climate_ai?schema=public"
+   
+   # NextAuth
+   NEXTAUTH_URL="http://localhost:3000"
+   NEXTAUTH_SECRET="生成一个随机字符串作为密钥"
+   ```
+
+3. 生成`NEXTAUTH_SECRET`的方法:
+   ```bash
+   openssl rand -base64 32
+   ```
+
+4. 运行数据库迁移:
+   ```bash
+   npx prisma migrate dev
+   ```
+
+## 部署
