@@ -111,16 +111,6 @@ jobs:
           docker push ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:${{ steps.vars.outputs.new_version }}
           docker push ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:latest
 
-      - name: Build and push Docker image for db admin
-        run: |
-          # 构建镜像
-          docker build -t ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.org_name }}/db-admin:${{ steps.vars.outputs.new_version }} -f Dockerfile.db-admin .
-          docker tag ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.org_name }}/db-admin:${{ steps.vars.outputs.new_version }} ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.org_name }}/db-admin:latest
-          
-          # 推送镜像
-          docker push ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.org_name }}/db-admin:${{ steps.vars.outputs.new_version }}
-          docker push ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.org_name }}/db-admin:latest
-
       - name: Create and push git tag
         run: |
           # 再次检查标签是否存在（以防万一）
