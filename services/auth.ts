@@ -12,7 +12,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { SessionStrategy } from "next-auth";
 
-export const authOptions = {
+export const authOptions =  {
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
