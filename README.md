@@ -44,7 +44,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
    ```
    # 数据库
    DATABASE_URL="postgresql://username:password@localhost:5432/climate_ai?schema=public"
-   
+
    # NextAuth
    NEXTAUTH_URL="http://localhost:3000"
    NEXTAUTH_SECRET="生成一个随机字符串作为密钥"
