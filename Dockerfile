@@ -28,6 +28,15 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED 1
 
+# Generate Prisma client for the target platform
+RUN \
+    if [ -f yarn.lock ]; then yarn prisma generate; \
+    elif [ -f package-lock.json ]; then npx prisma generate; \
+    elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm prisma generate; \
+    else echo "Lockfile not found." && exit 1; \
+    fi
+
+# Build the application
 RUN \
     if [ -f yarn.lock ]; then yarn run build; \
     elif [ -f package-lock.json ]; then npm run build; \
