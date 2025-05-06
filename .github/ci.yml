@@ -1,0 +1,237 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.filter.outputs.should_build }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes outside .github directory
+        id: filter
+        run: |
+          # 获取所有更改的文件
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
+          echo "Changed files: $CHANGED_FILES"
+          
+          # 检查是否有 .github 目录外的文件被修改
+          OUTSIDE_GITHUB=false
+          for file in $CHANGED_FILES; do
+            if [[ ! $file == .github/* ]]; then
+              OUTSIDE_GITHUB=true
+              break
+            fi
+          done
+          
+          # 设置输出变量
+          if [ "$OUTSIDE_GITHUB" = true ]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "Changes detected outside .github directory, will run build"
+          else
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "Only changes in .github directory, skipping build"
+          fi
+
+  build-and-deploy:
+    needs: check-changes
+    if: needs.check-changes.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.vars.outputs.new_version }}
+      repo_name: ${{ steps.vars.outputs.repo_name }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate version and image name
+        id: vars
+        run: |
+          # 尝试获取最新的版本标签
+          if ! git describe --tags --match "v*" > /dev/null 2>&1; then
+            echo "No existing version tags found, starting from v0.0.1"
+            new_version="v0.0.1"
+          else
+            latest_tag=$(git describe --tags --match "v*" --abbrev=0)
+            echo "Latest tag found: $latest_tag"
+            
+            # 解析版本号
+            version_number=${latest_tag#v}
+            IFS='.' read -r major minor patch <<< "$version_number"
+            
+            # 检查标签是否已存在，如果存在则继续增加版本号
+            while true; do
+              new_patch=$((patch + 1))
+              new_version="v$major.$minor.$new_patch"
+              
+              if ! git rev-parse "$new_version" >/dev/null 2>&1; then
+                echo "Found available version: $new_version"
+                break
+              fi
+              
+              echo "Version $new_version already exists, trying next version"
+              patch=$new_patch
+            done
+          fi
+          
+          # 处理仓库名称为小写
+          repo_name=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          # 提取组织名称（斜杠前的部分）
+          org_name=$(echo "$repo_name" | cut -d'/' -f1)
+          
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          echo "repo_name=$repo_name" >> $GITHUB_OUTPUT
+          echo "org_name=$org_name" >> $GITHUB_OUTPUT
+          echo "Version will be: $new_version"
+          echo "Repository name will be: $repo_name"
+          echo "Organization name will be: $org_name"
+
+      - name: Login to Docker Registry
+        run: |
+          echo "${{ secrets.DOCKER_REGISTRY_PASSWORD }}" | docker login ${{ vars.DOCKER_REGISTRY }} -u ${{ vars.DOCKER_REGISTRY_USERNAME }} --password-stdin
+
+      - name: Build and push Docker image for app
+        run: |
+          # 构建镜像
+          docker build -t ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:${{ steps.vars.outputs.new_version }} .
+          docker tag ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:${{ steps.vars.outputs.new_version }} ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:latest
+          
+          # 推送镜像
+          docker push ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:${{ steps.vars.outputs.new_version }}
+          docker push ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:latest
+
+      - name: Build and push Docker image for db admin
+        run: |
+          # 构建镜像
+          docker build -t ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.org_name }}/db-admin:${{ steps.vars.outputs.new_version }} -f Dockerfile.db-admin .
+          docker tag ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.org_name }}/db-admin:${{ steps.vars.outputs.new_version }} ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.org_name }}/db-admin:latest
+          
+          # 推送镜像
+          docker push ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.org_name }}/db-admin:${{ steps.vars.outputs.new_version }}
+          docker push ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.org_name }}/db-admin:latest
+
+      - name: Create and push git tag
+        run: |
+          # 再次检查标签是否存在（以防万一）
+          if git rev-parse "${{ steps.vars.outputs.new_version }}" >/dev/null 2>&1; then
+            echo "Tag ${{ steps.vars.outputs.new_version }} already exists, skipping tag creation"
+          else
+            git tag ${{ steps.vars.outputs.new_version }}
+            git push origin ${{ steps.vars.outputs.new_version }}
+          fi
+
+      - name: Generate docker-compose.yml
+        run: |
+          cat > docker-compose.yml << EOF
+          version: '3.8'
+          services:
+            app:
+              image: ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:${{ steps.vars.outputs.new_version }}
+              restart: always
+              ports:
+                - "3000:3000"
+              environment:
+                #- BACKEND_API=http://mock-api:80
+                - DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/fwwebgui
+              depends_on:
+                - postgres
+              healthcheck:
+                test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+                interval: 30s
+                timeout: 10s
+                retries: 3
+                start_period: 40s
+            
+            # mock-api:
+            #   image: clue/json-server
+            #   restart: always
+            #   environment:
+            #     - WATCH=/data/db.json
+            #   ports:
+            #     - "3001:80"
+            #   volumes:
+            #     - ./db.json:/data/db.json
+            
+            postgres:
+              image: postgres
+              restart: always
+              ports:
+                - "5432:5432"
+              environment:
+                POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+                POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+                POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+              volumes:
+                - postgres_data:/var/lib/postgresql/data
+                - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+          volumes:
+            postgres_data:
+          EOF
+
+      # - name: Copy files to server
+      #   uses: appleboy/scp-action@v0.1.7
+      #   with:
+      #     host: ${{ vars.SERVER_IP }}
+      #     username: ${{ secrets.SERVER_USERNAME }}
+      #     password: ${{ secrets.SERVER_PASSWORD }}
+      #     source: "docker-compose.yml,db.json"
+      #     target: "/home/ubuntu"
+
+      # - name: Deploy to server
+      #   uses: appleboy/ssh-action@v1.0.3
+      #   with:
+      #     host: ${{ vars.SERVER_IP }}
+      #     username: ${{ secrets.SERVER_USERNAME }}
+      #     password: ${{ secrets.SERVER_PASSWORD }}
+      #     script: |
+      #       cd /home/ubuntu
+      #       docker login ${{ vars.DOCKER_REGISTRY }} -u ${{ vars.DOCKER_REGISTRY_USERNAME }} -p ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+      #       docker compose pull
+      #       docker compose up -d
+
+      # - name: Health check
+      #   uses: appleboy/ssh-action@v1.0.3
+      #   with:
+      #     host: ${{ vars.SERVER_IP }}
+      #     username: ${{ secrets.SERVER_USERNAME }}
+      #     password: ${{ secrets.SERVER_PASSWORD }}
+      #     script: |
+      #       # 等待服务启动
+      #       echo "Waiting for service to start..."
+      #       sleep 30
+            
+      #       # 检查服务健康状态
+      #       max_retries=10
+      #       retry_count=0
+            
+      #       while [ $retry_count -lt $max_retries ]; do
+      #         if curl -f http://localhost:3000/health; then
+      #           echo "Service is healthy!"
+      #           exit 0
+      #         fi
+              
+      #         echo "Service not healthy yet, retrying in 10s..."
+      #         sleep 10
+      #         retry_count=$((retry_count + 1))
+      #       done
+            
+      #       echo "Service failed to become healthy after $max_retries attempts"
+      #       # 获取容器日志以便调试
+      #       docker compose logs app
+      #       exit 1
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write

@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { dbService } from '@/services/db';
 import { llmService } from '@/services/llm';
 
@@ -19,10 +19,10 @@ const formatSSEMessage = (event: string, data: unknown, reportId: string): strin
 // GET处理器 - 建立SSE连接并自动开始内容生成
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const encoder = new TextEncoder();
-  const reportId = params.id || 'unknown';
+  const reportId = (await params).id || 'unknown';
   
   try {
     // 获取研究报告信息
@@ -112,10 +112,10 @@ export async function GET(
 // POST处理器 - 触发内容生成
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reportId = params.id || 'unknown';
+    const reportId = (await params).id || 'unknown';
     
     // 获取请求体数据
     const requestData = await request.json().catch(() => ({}));
@@ -125,7 +125,7 @@ export async function POST(
     // 如果需要在触发生成前进行某些准备工作
     
     // 返回成功响应
-    return new Response(
+    return new NextResponse(
       JSON.stringify({
         success: true,
         message: "已触发内容生成",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/services/auth";
 import { dbService } from '@/services/db';
 import { ResearchResult } from '@/types/chat';
 
@@ -9,7 +9,7 @@ import { ResearchResult } from '@/types/chat';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -19,7 +19,7 @@ export async function GET(
       return NextResponse.json({ error: "未授权访问" }, { status: 401 });
     }
     
-    const researchId = params.id;
+    const researchId = (await params).id;
     
     // 获取研究报告
     const research = await dbService.getResearch(researchId);
@@ -81,10 +81,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reportId = params.id;
+    const reportId = (await params).id;
     console.log(`接收到更新研究报告请求: ${reportId}`);
     
     // 解析请求体
@@ -99,7 +99,7 @@ export async function PUT(
     }
 
     // 从请求体中获取研究结果ID
-    const { resultId, markdownContent, data, summary, status, isComplete } = body;
+    const { resultId, markdownContent, summary, status, isComplete } = body;
     
     let updatedResearch;
     let updatedResult;
@@ -108,7 +108,6 @@ export async function PUT(
     if (resultId) {
       updatedResult = await dbService.updateResearchResult(resultId, {
         markdownContent,
-        data,
         summary,
         status,
       });
@@ -144,12 +143,12 @@ export async function PUT(
 // 添加跟进问题
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
-    const researchId = params.id;
+    const researchId = (await params).id;
 
     // 解析请求体
     const data = await request.json();

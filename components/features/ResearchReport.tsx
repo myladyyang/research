@@ -6,6 +6,7 @@ import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { RelatedContent } from "@/components/features/RelatedContent";
 import { Button } from "@/components/ui/Button";
 import { StatusIndicator } from "@/components/features/StatusIndicator";
+import Image from "next/image";
 import { 
   ResearchReportProps
 } from "@/types/chat";
@@ -273,11 +274,15 @@ export function ResearchReport({
               components={{
                 // 自定义图片组件以避免嵌套问题
                 img: ({ alt, src, ...props }) => {
+                  // 过滤掉不兼容的props，提取必要属性
+                  const { width, height, ...otherProps } = props;
                   return (
-                    <img 
-                      src={src}
-                      alt={alt || "图表图像"} 
-                      {...props}
+                    <Image 
+                      src={src as string}
+                      alt={alt || "图表图像"}
+                      width={width ? Number(width) : 800} // 转换为数字或使用默认值
+                      height={height ? Number(height) : 600} // 转换为数字或使用默认值
+                      {...otherProps}
                     />
                   );
                 },

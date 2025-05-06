@@ -93,10 +93,11 @@ export function FloatingInput({
       id: Math.random().toString(36).substring(2, 9),
       name: file.name,
       size: formatFileSize(file.size),
-      type: file.type
+      type: file.type,
+      url: URL.createObjectURL(file)
     }));
 
-    setUploadedFiles(prev => [...prev, ...newFiles]);
+    setUploadedFiles(prev => [...prev, ...newFiles ]);
     
     // 重置文件输入
     if (fileInputRef.current) {

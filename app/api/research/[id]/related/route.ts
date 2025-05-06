@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { dbService } from '@/services/db';
 import { RelatedItem } from '@/types/chat';
 
@@ -7,10 +7,10 @@ import { RelatedItem } from '@/types/chat';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const researchId = params.id;
+    const researchId = (await params).id;
     console.log(`接收到添加研究报告相关内容请求: ${researchId}`);
     
     // 解析请求体
@@ -28,8 +28,8 @@ export async function POST(
     const relatedItems = body.map(item => ({
       title: item.title,
       url: item.url,
-      date: item.date,
-      description: item.description
+      date: item.date || undefined,
+      description: item.description || undefined
     }));
     
     // 添加研究报告相关内容
@@ -56,12 +56,11 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const researchId = params.id;
+    const researchId = (await params).id;
     console.log(`接收到获取研究报告相关内容请求: ${researchId}`);
-    
     // 获取研究报告
     const research = await dbService.getResearch(researchId);
     
@@ -74,21 +73,21 @@ export async function GET(
     }
     
     // 格式化相关内容数据
-    const relatedItems = research.related.map((item: RelatedItem) => ({
+    const relatedItems = research.related?.map((item: RelatedItem) => ({
       id: item.id,
       title: item.title,
       url: item.url,
       date: item.date,
       description: item.description
-    }));
+    })) || [];
     
-    return new Response(
+    return new NextResponse(
       JSON.stringify(relatedItems),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error("获取研究报告相关内容失败:", error);
-    return new Response(
+    return new NextResponse(
       JSON.stringify({ 
         error: true, 
         message: error instanceof Error ? error.message : "获取研究报告相关内容失败" 

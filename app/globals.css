@@ -235,7 +235,7 @@
   }
 
   .sidebar {
-    @apply w-120 bg-muted  fixed top-[60px] bottom-0 left-0 flex flex-col overflow-y-auto;
+    @apply w-60 bg-muted  fixed top-[60px] bottom-0 left-0 flex flex-col overflow-y-auto;
     @apply lg:block;
     @apply hidden;
   }

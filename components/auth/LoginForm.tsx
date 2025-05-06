@@ -34,6 +34,7 @@ export function LoginForm() {
       router.push("/");
       router.refresh();
     } catch (error) {
+      console.error("登录错误:", error);
       setError("登录过程中出现错误");
       setIsLoading(false);
     }

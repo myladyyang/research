@@ -25,11 +25,11 @@ export async function POST(request: Request) {
       { user },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error) {
     // 处理错误
     console.error("[REGISTER_ERROR]", error);
     return NextResponse.json(
-      { error: error.message || "注册失败" },
+      { error: error instanceof Error ? error.message : "注册失败" },
       { status: 500 }
     );
   }

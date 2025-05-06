@@ -7,10 +7,10 @@ import { Source } from '@/types/chat';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const researchId = params.id;
+    const researchId = (await params).id;
     console.log(`接收到添加研究报告来源请求: ${researchId}`);
     
     // 解析请求体
@@ -57,10 +57,10 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const researchId = params.id;
+    const researchId = (await params).id;
     console.log(`接收到获取研究报告来源请求: ${researchId}`);
     
     // 获取研究报告数据
@@ -75,13 +75,13 @@ export async function GET(
     }
     
     // 格式化来源数据
-    const sources = research.sources.map((source: Source) => ({
+    const sources = research.sources?.map((source: Source) => ({
       id: source.id,
       title: source.title,
       url: source.url,
       source: source.source,
       sourceIcon: source.sourceIcon
-    }));
+    })) || [];
     
     return new Response(
       JSON.stringify(sources),

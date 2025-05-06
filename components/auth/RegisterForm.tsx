@@ -46,8 +46,10 @@ export function RegisterForm() {
 
       // 注册成功，重定向到登录页
       router.push("/login?registered=true");
-    } catch (error: any) {
-      setError(error.message || "注册过程中出现错误");
+      
+    } catch (error) {
+      console.error("注册错误:", error);
+      setError(error instanceof Error ? error.message : "注册过程中出现错误");
       setIsLoading(false);
     }
   };

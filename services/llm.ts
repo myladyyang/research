@@ -1,5 +1,4 @@
-import { dbService } from './db';
-import { Data, Source, RelatedItem } from '../types/chat';
+import { Source, RelatedItem } from '../types/chat';
 
 // 响应块接口
 export interface LLMResponseChunk {
@@ -7,7 +6,7 @@ export interface LLMResponseChunk {
   content?: string;
   sources?: Source[];
   related?: RelatedItem[];
-  data?: Data;
+  data?: string;
   status?: string;
   progress?: number;
   isComplete?: boolean; // 是否完成标识，用于标记sources/related/data是否已完成生成
@@ -43,8 +42,6 @@ export class LLMService {
   ): AsyncGenerator<LLMResponseChunk> {
     const { 
       model = this.defaultModel,
-      systemPrompt = this.defaultSystemPrompt,
-      temperature = 0.7
     } = options;
     
     try {
@@ -67,9 +64,6 @@ export class LLMService {
       let progress = 10;
       
       // 使用单独的标志变量跟踪发送状态
-      let sourcesSent = false;
-      let relatedSent = false;
-      let dataSent = false;
       
       // 生成内容流
       let contentBlocks = '';
@@ -289,7 +283,7 @@ export class LLMService {
   generateRelatedResources(topics: string[]): {
     sources: Source[];
     related: RelatedItem[];
-    data: Data;
+    data: string;
   } {
     // 来源数据库
     const allSources = {
@@ -451,25 +445,25 @@ export class LLMService {
     const primaryTopic = topics[0] || 'climate-general';
     
     // 获取主题的资源
-    const sources = allSources[primaryTopic] || allSources['climate-general'];
+    const sources = allSources[primaryTopic as keyof typeof allSources] || allSources['climate-general'];
     
-    const related = allRelated[primaryTopic] || allRelated['climate-general'];
+    const related = allRelated[primaryTopic as keyof typeof allRelated] || allRelated['climate-general'];
     
-    const data = dataTemplates[primaryTopic] || dataTemplates['climate-general'];
+    const data = dataTemplates[primaryTopic as keyof typeof dataTemplates] || dataTemplates['climate-general'];
     
     // 如果有多个主题，添加额外相关资源
     if (topics.length > 1) {
       // 从其他主题中各添加一个来源
       topics.slice(1).forEach(topic => {
-        if (allSources[topic] && allSources[topic].length > 0) {
-          const extraSource = allSources[topic][0];
+        if (allSources[topic as keyof typeof allSources] && allSources[topic as keyof typeof allSources].length > 0) {
+          const extraSource = allSources[topic as keyof typeof allSources][0];
           extraSource.id = (sources.length + 1).toString();
           extraSource.sourceId = (sources.length + 1).toString();
           sources.push(extraSource);
         }
         
-        if (allRelated[topic] && allRelated[topic].length > 0) {
-          const extraRelated = allRelated[topic][0];
+        if (allRelated[topic as keyof typeof allRelated] && allRelated[topic as keyof typeof allRelated].length > 0) {
+          const extraRelated = allRelated[topic as keyof typeof allRelated][0];
           extraRelated.id = `rel${related.length + 1}`;
           related.push(extraRelated);
         }
