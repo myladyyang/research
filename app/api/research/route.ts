@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/services/auth";
 import { dbService } from '@/services/db';
+import { researchQueueProducer } from '@/lib/queue/producer'
 import { ResearchQuestion } from '@/types/chat';
 
 /**
@@ -12,35 +13,32 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
     
-    // 解析请求体
-    const body = await request.json() as ResearchQuestion;
-    
-    // 验证请求数据
-    if (!body.question || typeof body.question !== 'string') {
-      return new Response(
-        JSON.stringify({ error: '缺少有效的问题内容' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+    if (!userId) {
+      return NextResponse.json({ error: '未授权' }, { status: 401 });
     }
-    
-    console.log('创建研究报告:', body);
 
-    // 创建研究报告记录
-    const research = await dbService.createResearch(body, userId);
+    const question = await request.json() as ResearchQuestion;
     
-    // 返回研究报告ID
-    return new Response(
-      JSON.stringify({ id: research.id }),
-      { status: 201, headers: { 'Content-Type': 'application/json' } }
+    // 创建初始研究记录
+    const { research, result } = await dbService.createResearch(
+      question,
+      userId,
     );
+
+    // 添加到队列处理
+    await researchQueueProducer.addResearchJob({
+      researchId: research.id,
+      question,
+      userId,
+      resultId: result.id,
+    });
+
+    return NextResponse.json({ id: research.id });
   } catch (error) {
-    console.error('创建研究报告失败:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: '处理请求时发生错误',
-        details: error instanceof Error ? error.message : String(error)
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    console.error('创建研究失败:', error);
+    return NextResponse.json(
+      { error: '创建研究失败' },
+      { status: 500 }
     );
   }
 }
@@ -51,20 +49,18 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
-    // 如果用户未登录，返回空数组
-    if (!session?.user) {
-      return NextResponse.json({ research: [] }, { status: 200 });
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: '未授权' }, { status: 401 });
     }
-    
-    // 获取用户的研究
-    const research = await dbService.getUserResearches(session.user.id);
-    
-    return NextResponse.json({ research }, { status: 200 });
+
+    const researches = await dbService.getUserResearches(userId);
+    return NextResponse.json(researches);
   } catch (error) {
-    console.error("获取研究失败:", error);
+    console.error('获取研究列表失败:', error);
     return NextResponse.json(
-      { error: "获取研究失败" },
+      { error: '获取研究列表失败' },
       { status: 500 }
     );
   }

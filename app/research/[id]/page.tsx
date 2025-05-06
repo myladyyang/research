@@ -116,7 +116,7 @@ export default function ResearchReportPage() {
       sources={sources}
       related={relatedItems}
       date={manager.report.date}
-      data={result?.data || ""}
+      data={result?.data as Record<string, unknown> || {}}
       status={result?.status || ""}
       isContentComplete={isContentComplete}
       isLoading={isLoading}

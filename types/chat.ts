@@ -3,12 +3,9 @@ import { ReactNode } from "react";
 export interface UploadedFile {
   id: string;
   name: string;
-  size: string;
   type: string;
   url: string;
-  createdAt?: string;
-  updatedAt?: string;
-  fileId?: string;
+  size?: string;
 }
 
 export interface SourceOption {
@@ -83,45 +80,7 @@ export interface BreadcrumbItem {
   isCurrent?: boolean;
 }
 
-// SSE事件类型定义
-export type ContentEvent = {
-  type: 'content';
-  content: string;
-};
 
-export type SourcesEvent = {
-  type: 'sources';
-  sources: Source[];
-};
-
-export type RelatedEvent = {
-  type: 'related';
-  related: RelatedItem[];
-};
-
-export type CompleteEvent = {
-  type: 'complete';
-  reportId?: string;
-};
-
-export type PingEvent = {
-  type: 'ping';
-  message?: string;
-  timestamp?: number;
-};
-
-export type ErrorEvent = {
-  type: 'error';
-  message: string;
-};
-
-export type ResearchStreamEvent = 
-  | ContentEvent 
-  | SourcesEvent 
-  | RelatedEvent 
-  | CompleteEvent
-  | PingEvent
-  | ErrorEvent;
 
 export interface ResearchReportProps {
   // 必须的属性
@@ -131,7 +90,7 @@ export interface ResearchReportProps {
   related?: RelatedItem[];
   breadcrumbs?: BreadcrumbItem[];
   date?: string;
-  data?: string;
+  data?: Record<string, unknown>; // 修改为any类型，对应prisma中的Json类型
   // 状态属性
   isLoading?: boolean;
   isComplete?: boolean;
@@ -148,57 +107,44 @@ export interface ResearchReportProps {
   onSave?: () => void;
 }
 
+// 用于存储在question JSON字段中的类型
 export interface ResearchQuestion {
   question: string;
   files?: UploadedFile[];
   model?: string;
-  version?: number; // 问题的版本号
+  version?: number;
   id?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
-// 研究结果接口
+// 研究结果接口 - 对应ResearchResult模型
 export interface ResearchResult {
   id: string;
   version: number;
   markdownContent?: string;
   summary?: string;
-  data?: string;
-  status?: string; // 研究的当前状态
-  isComplete: boolean; // 是否完成生成
-  progress?: number; // 生成进度，0-100
+  data?: Record<string, unknown>; // 修改为any类型，对应prisma中的Json类型
+  sources?: Source[]; // 添加sources字段，对应prisma中的Json类型
+  status?: string;
+  isComplete: boolean;
   createdAt: string;
   updatedAt?: string;
-  questionId: string;
   researchId?: string | null;
 }
 
-// 气候报告接口
+// 气候研究接口 - 对应Research模型
 export type Research = {
   id: string;
   title: string;
-  date: string;
-  isComplete?: boolean;
-  questions?: ResearchQuestion[]; // 多个问题
-  currentQuestion?: ResearchQuestion; // 当前激活的问题
-  results?: ResearchResult[]; // 多个研究结果
-  currentResult?: ResearchResult; // 当前激活的结果
-  sources?: Source[];
-  related?: RelatedItem[];
-  tags?: string[];
-  files?: UploadedFile[];
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-
-export interface Data {
-  id: string;
-  content: string;
-  dataType: string;
-  isComplete: boolean;
+  question?: ResearchQuestion | Record<string, unknown>; // 修改为具体类型或Record类型
+  related?: RelatedItem[]; // 修改为具体类型数组
+  files?: UploadedFile[]; // 修改为具体类型数组
+  results?: ResearchResult[]; // 关联的研究结果
+  currentResult?: ResearchResult; // 非数据库字段，用于前端显示当前活动的结果
+  userId?: string; // 添加userId字段
+  date?: string; // 非数据库字段，格式化的日期
   createdAt: string;
   updatedAt: string;
-  resultId: string;
-}
+};
+

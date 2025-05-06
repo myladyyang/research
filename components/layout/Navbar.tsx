@@ -22,10 +22,23 @@ export function Navbar() {
   const isAuthenticated = status === "authenticated";
 
   const [myResearch, setMyResearch] = useState<Research[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
   const getMyResearch = async () => {
-    const response = await fetch("/api/research");
-    const data = await response.json();
-    return data.research;
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/research/user");
+      if (!response.ok) {
+        throw new Error('获取研究列表失败');
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      console.error('获取研究列表失败:', error);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -45,10 +58,10 @@ export function Navbar() {
       
       {/* 中间 - 研究和业务导航 */}
       <div className="flex-1 flex justify-center">
-        <NavigationMenu className=" md:flex">
+        <NavigationMenu className="md:flex">
           <NavigationMenuList>
             <NavigationMenuItem>
-              <Link href="/"  passHref>
+              <Link href="/" passHref>
                 <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
                   <span>首页</span>
                 </NavigationMenuLink>
@@ -64,14 +77,27 @@ export function Navbar() {
               </NavigationMenuTrigger>
               <NavigationMenuContent>
                 <div className="p-4 w-[280px]">
-                  {myResearch.map((research) => (
-                    <Link href={`/research/${research.id}`} key={research.id} className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
-                      <div className="text-sm font-medium leading-none">{research.title}</div>
-                      <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                        {research.questions?.[0]?.question || "无问题"}
-                      </p>
-                    </Link>
-                  ))}
+                  {isLoading ? (
+                    <div className="text-center py-4 text-sm text-muted-foreground">
+                      加载中...
+                    </div>
+                  ) : myResearch.length > 0 ? (
+                    myResearch.map((research) => (
+                      <Link 
+                        href={`/research/${research.id}`} 
+                        key={research.id} 
+                        className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <div className="text-sm font-medium leading-none">
+                          {research.title || '未命名研究'}
+                        </div>
+                      </Link>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-sm text-muted-foreground">
+                      暂无研究报告
+                    </div>
+                  )}
                 </div>
               </NavigationMenuContent>
             </NavigationMenuItem>

@@ -387,7 +387,7 @@ export function ResearchReport({
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                 >
-                  {data}
+                  {JSON.stringify(data)}
                 </ReactMarkdown>
               ) : (
                 <div className="py-10 text-center">

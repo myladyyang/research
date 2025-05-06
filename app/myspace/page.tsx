@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { researchService } from "@/services/research";
 import { Research } from "@/types/chat";
 import Link from "next/link";
+import { useResearchManager } from "@/hooks/useResearchManager";
 import { 
   ChartLineIcon, 
   PlusIcon, 
@@ -20,6 +20,7 @@ import {
 export default function MySpacePage() {
   const { status } = useSession();
   const router = useRouter();
+  const researchManager = useResearchManager();
   const [researches, setResearches] = useState<Research[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,27 +32,29 @@ export default function MySpacePage() {
     }
   }, [status, router]);
 
-  // 获取用户的研究报告
-  useEffect(() => {
-    async function fetchResearches() {
-      try {
-        if (status === "authenticated") {
-          setIsLoading(true);
-          const data = await researchService.getUserResearches();
-          setResearches(data);
-          setError(null);
-        }
-      } catch (error) {
-        console.error("获取研究失败:", error);
-        setError("获取研究数据失败");
-      } finally {
-        setIsLoading(false);
-      }
+  // 使用 useCallback 包装获取研究数据的函数，避免重复创建
+  const fetchResearches = useCallback(async () => {
+    if (status !== "authenticated") return;
+    
+    try {
+      setIsLoading(true);
+      const data = await researchManager.api.getUserResearches();
+      setResearches(data);
+      setError(null);
+    } catch (error) {
+      console.error("获取研究失败:", error);
+      setError("获取研究数据失败");
+    } finally {
+      setIsLoading(false);
     }
+  }, [status, researchManager.api.getUserResearches]);
 
+  // 只在组件挂载和身份验证状态变化时获取数据
+  useEffect(() => {
     if (status === "authenticated") {
       fetchResearches();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
   // 加载状态
@@ -98,13 +101,7 @@ export default function MySpacePage() {
               <ChartLineIcon className="h-6 w-6 text-primary mr-2" />
               <h2 className="text-xl font-semibold text-gray-900">我的研究报告</h2>
             </div>
-            <Link
-              href="/research/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-            >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              新建研究
-            </Link>
+
           </div>
 
           {researches.length === 0 ? (
@@ -137,12 +134,12 @@ export default function MySpacePage() {
                       <h3 className="text-lg font-medium text-gray-900">{research.title}</h3>
                       <span 
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          research.isComplete 
+                          research.currentResult?.isComplete 
                             ? 'bg-green-100 text-green-800'
                             : 'bg-blue-100 text-blue-800'
                         }`}
                       >
-                        {research.isComplete 
+                        {research.currentResult?.isComplete 
                           ? <><CheckCircleIcon className="mr-1 h-3 w-3" /> 已完成</>
                           : <><CircleIcon className="mr-1 h-3 w-3" /> 进行中</>
                         }

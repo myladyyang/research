@@ -24,7 +24,6 @@ model User {
 
   // 关联
   researches Research[]
-  questions  Question[]
   accounts   Account[]
   sessions   Session[]
 
@@ -73,142 +72,40 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-// 研究报告模型 - 顶层组织单元
+// 研究报告模型 - 简化后的主要模型
 model Research {
-  id    String @id @default(cuid())
-  title String // 研究的标题
-
-  isComplete Boolean  @default(false)
+  id         String   @id @default(cuid())
+  title      String   // 研究的标题
+  question   Json?    // 存储问题的JSON数据
+  related    Json?    // 存储相关研究的JSON数据
+  files      Json?    // 存储文件信息的JSON数据
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   // 关联
-  userId    String?
-  user      User?            @relation(fields: [userId], references: [id])
-  questions Question[] // 研究中的多个问题
-  results   ResearchResult[] // 研究生成的多个结果
-  sources   Source[]
-  related   Related[]
-  tags      Tag[]
-  File      File[]
+  userId  String?
+  user    User?            @relation(fields: [userId], references: [id])
+  results ResearchResult[] // 研究生成的结果
 
   @@map("researches")
 }
 
-// 用户提问模型
-model Question {
-  id        String   @id @default(cuid())
-  content   String   @db.Text
-  model     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // 关联
-  userId     String?
-  user       User?           @relation(fields: [userId], references: [id])
-  researchId String?
-  research   Research?       @relation(fields: [researchId], references: [id])
-  files      File[] // 问题关联的文件
-  result     ResearchResult? // 每个问题生成一个研究结果
-
-  @@map("questions")
-}
-
-// 研究结果模型 - 每个问题对应的具体结果
+// 研究结果模型
 model ResearchResult {
   id              String    @id @default(cuid())
-  version         Int // 结果的版本号
+  version         Int       // 结果的版本号
   markdownContent String?   @db.Text
   summary         String?   @db.Text
+  data            Json?     // 本次结果存储数据可视化内容的JSON数据
+  sources         Json?    // 本次结果存储来源的JSON数据
+  status          String?   // 研究的当前状态
+  isComplete      Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  status          String? // 研究的当前状态  
-  isComplete      Boolean   @default(false) // 是否完成
-  progress        Int?      // 生成进度0-100
+
   // 关联
-  researchId      String?
-  research        Research? @relation(fields: [researchId], references: [id])
-  questionId      String    @unique // 每个问题只有一个结果
-  question        Question  @relation(fields: [questionId], references: [id])
-  data            Data?     // 关联到数据可视化内容
+  researchId String?
+  research   Research? @relation(fields: [researchId], references: [id])
 
   @@map("research_results")
-}
-
-// 数据可视化模型 - 存储图表和数据分析内容
-model Data {
-  id          String   @id @default(cuid())
-  content     String   @db.Text // 图表和数据可视化内容
-  dataType    String   // 数据类型 (例如: chart, table, stats)
-  isComplete  Boolean  @default(false) // 是否完成生成
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // 关联
-  resultId    String   @unique // 每个研究结果只有一组数据可视化
-  result      ResearchResult @relation(fields: [resultId], references: [id])
-
-  @@map("research_data")
-}
-
-// 来源模型
-model Source {
-  id         String  @id @default(cuid())
-  sourceId   String // 原始来源ID
-  title      String
-  url        String
-  source     String
-  sourceIcon String?
-
-  // 关联
-  researchId String?
-  research   Research? @relation(fields: [researchId], references: [id])
-
-  @@map("sources")
-}
-
-// 相关研究模型
-model Related {
-  id          String  @id @default(cuid())
-  title       String
-  url         String
-  date        String?
-  description String?
-
-  // 关联
-  researchId String?
-  research   Research? @relation(fields: [researchId], references: [id])
-
-  @@map("related")
-}
-
-// 标签模型
-model Tag {
-  id   String @id @default(cuid())
-  name String @unique
-
-  // 关联
-  researches Research[]
-
-  @@map("tags")
-}
-
-// 文件模型
-model File {
-  id        String   @id @default(cuid())
-  fileId    String // 外部存储系统的文件ID
-  name      String // 文件名
-  size      String // 文件大小（格式化的字符串）
-  type      String // 文件MIME类型
-  url       String? // 文件访问URL
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // 关联
-  researchId String?
-  research   Research? @relation(fields: [researchId], references: [id])
-  questionId String?
-  question   Question? @relation(fields: [questionId], references: [id])
-
-  @@map("files")
 }

@@ -13,7 +13,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useSession } from "next-auth/react";
-import { HomeIcon, FolderIcon, SettingsIcon } from "lucide-react";
+import { HomeIcon, FolderIcon, SettingsIcon, Loader2Icon } from "lucide-react";
 import { Research } from "@/types/chat";
 
 
@@ -49,16 +49,28 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 export function Sidebar() {
-
-  const [recentResearch, setRecentResearch] =  useState<Research[]>([]);
-  const {  status } = useSession();
+  const { status } = useSession();
   const isAuthenticated = status === "authenticated";
+  
+  const [recentResearch, setRecentResearch] = useState<Research[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const getRecentResearch = async () => {
-    const response = await fetch("/api/research");
-    const data = await response.json();
-    return data.research;
-  }
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/research/user");
+      if (!response.ok) {
+        throw new Error('获取研究列表失败');
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      console.error('获取研究列表失败:', error);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -66,6 +78,9 @@ export function Sidebar() {
     }
   }, [isAuthenticated]);
 
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <ShadcnSidebar className="sidebar" collapsible="offcanvas">
@@ -97,18 +112,31 @@ export function Sidebar() {
           <SidebarGroupLabel className="text-sm font-medium text-muted-foreground mb-3">最近研究</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              {recentResearch.map((research) => (
-                <SidebarMenuItem key={research.id}>
-                  <SidebarMenuButton asChild>
-                  <Link 
-                    href={`/research/${research.id}`} 
-                    className="flex items-center px-3 py-2 text-sm rounded-md hover:bg-accent"
-                  >
-                    {research.title}
-                  </Link>
-                </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {isLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2Icon className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : recentResearch.length > 0 ? (
+                recentResearch.map((research) => (
+                  <SidebarMenuItem key={research.id}>
+                    <SidebarMenuButton asChild>
+                      <Link 
+                        href={`/research/${research.id}`}
+                        className="flex items-center px-3 py-2 text-sm rounded-md hover:bg-accent"
+                      >
+                        <span className="font-medium">
+                          {research.title || '未命名研究'}
+                        </span>
+
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              ) : (
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  暂无研究报告
+                </div>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
