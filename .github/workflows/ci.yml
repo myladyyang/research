@@ -103,13 +103,23 @@ jobs:
 
       - name: Build and push Docker image for app
         run: |
-          # 构建镜像
+          # 构建应用镜像
           docker build -t ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:${{ steps.vars.outputs.new_version }} .
           docker tag ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:${{ steps.vars.outputs.new_version }} ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:latest
           
-          # 推送镜像
+          # 推送应用镜像
           docker push ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:${{ steps.vars.outputs.new_version }}
           docker push ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}:latest
+
+      - name: Build and push Docker image for worker
+        run: |
+          # 构建worker镜像
+          docker build -t ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}-worker:${{ steps.vars.outputs.new_version }} -f Dockerfile.worker .
+          docker tag ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}-worker:${{ steps.vars.outputs.new_version }} ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}-worker:latest
+          
+          # 推送worker镜像
+          docker push ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}-worker:${{ steps.vars.outputs.new_version }}
+          docker push ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}-worker:latest
 
       - name: Create and push git tag
         run: |
@@ -143,6 +153,28 @@ jobs:
                 retries: 3
                 start_period: 40s
             
+            worker:
+              image: ${{ vars.DOCKER_REGISTRY }}/${{ steps.vars.outputs.repo_name }}-worker:${{ steps.vars.outputs.new_version }}
+              restart: always
+              environment:
+                - NODE_ENV=production
+                - REDIS_HOST=redis
+                - REDIS_PORT=6379
+                - REDIS_PASSWORD=2clabsadmin
+                - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/climateai?schema=public
+              depends_on:
+                - postgres
+                - redis
+            
+            redis:
+              image: redis:7-alpine
+              restart: always
+              command: redis-server --requirepass 2clabsadmin
+              ports:
+                - "6379:6379"
+              volumes:
+                - redis_data:/data
+            
             # mock-api:
             #   image: clue/json-server
             #   restart: always
@@ -167,6 +199,7 @@ jobs:
                 - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
           volumes:
             postgres_data:
+            redis_data:
           EOF
 
       # - name: Copy files to server

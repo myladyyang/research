@@ -1,0 +1,66 @@
+FROM node:22-slim AS base
+
+# install openssl
+RUN apt-get update && apt-get install -y openssl
+FROM base AS deps
+WORKDIR /app
+
+# 复制所有文件以正确地生成Prisma
+COPY . .
+
+# 安装依赖
+RUN \
+    if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
+    elif [ -f package-lock.json ]; then npm ci; \
+    elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
+    else echo "Lockfile not found." && exit 1; \
+    fi
+
+# 生成Prisma客户端
+RUN \
+    if [ -f yarn.lock ]; then yarn prisma:generate; \
+    elif [ -f package-lock.json ]; then npm run prisma:generate; \
+    elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run prisma:generate; \
+    else echo "Lockfile not found." && exit 1; \
+    fi
+    
+# 检查生成的.prisma目录是否存在
+RUN ls -la node_modules/.prisma || echo "Prisma目录不存在"
+
+# 最终阶段 - 只复制worker所需的文件
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# 创建必要的目录和设置权限
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 --gid 1001 nodeuser && \
+    mkdir -p ./logs && \
+    chown nodeuser:nodejs ./logs
+
+# 复制必要的文件 - 只需worker运行相关的文件
+COPY --from=deps /app/node_modules/ ./node_modules/
+COPY --from=deps /app/scripts/worker.ts ./scripts/
+COPY --from=deps /app/types/ ./types/
+COPY --from=deps /app/services/ ./services/
+COPY --from=deps /app/package.json ./
+COPY --from=deps /app/tsconfig.json ./
+
+# 创建路径别名映射文件
+RUN echo '{"compilerOptions":{"baseUrl":".","paths":{"@/*":["*"]}}}' > ./tsconfig.paths.json
+
+# 安装tsx用于运行TypeScript
+RUN npm install -g tsx
+
+# 设置环境变量 - 这些是默认值，可以在运行时覆盖
+ENV REDIS_HOST=redis
+ENV REDIS_PORT=6379
+ENV REDIS_PASSWORD=2clabsadmin
+ENV DATABASE_URL=postgresql://postgres:postgres@postgres:5432/climateai?schema=public
+
+# 使用非root用户运行
+USER nodeuser
+
+# 直接使用tsx运行worker脚本，而不是通过npm scripts
+CMD ["tsx", "--tsconfig", "tsconfig.json", "scripts/worker.ts"] 
