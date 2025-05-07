@@ -3,6 +3,7 @@ import IORedis from 'ioredis';
 import { ResearchQuestion, Source } from '@/types/chat';
 import { dbService } from '@/services/db';
 
+
 // Redis连接配置
 const connection = new IORedis({
   host: process.env.REDIS_HOST || 'localhost',
@@ -15,6 +16,10 @@ const connection = new IORedis({
     return delay;
   }
 });
+
+// Dify Workflow API 配置
+const dify_url = process.env.DIFY_URL || 'http://118.25.139.133:5001';
+const dify_api_key = process.env.DIFY_API_KEY || 'app-taAgJy8Dz4CbqeUPhLAm8rNY';
 
 // 队列名称
 const QUEUE_NAME = 'research-queue';
@@ -41,28 +46,236 @@ interface ResearchJobData {
   resultId: string;
 }
 
-// 模拟数据生成函数
-function generateMockData(question: string) {
-  // 模拟图表数据
-  const chartData = {
+interface ChartData {
+  type: string;
+  labels: string[];
+  datasets: Array<{
+    label: string;
+    data: number[];
+    borderColor: string;
+  }>;
+}
+
+// 启动Dify工作流并返回工作流ID
+async function startDifyWorkflow(question: string, userId: string, jobUpdateCallback?: (content: string, progress: number) => Promise<void>): Promise<{
+  content: string;
+  chartData: ChartData;
+  sources: Source[];
+}> {
+  try {
+    console.log(`启动Dify工作流，问题: "${question}"`);
+    
+    // 调用Dify Workflow API，使用流式模式
+    const response = await fetch(`${dify_url}/v1/workflows/run`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${dify_api_key}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        inputs: {
+          "research_question": question
+        },
+        response_mode: "streaming", // 使用流式模式
+        user: userId || "research-worker"
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Dify API错误 (${response.status}): ${await response.text()}`);
+    }
+    
+    if (!response.body) {
+      throw new Error('响应体为空');
+    }
+
+    // 处理流式响应
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let partialChunk = '';
+    
+    // 收集最终结果
+    let finalContent = '';
+    let accumulatedContent = ''; // 用于累积text_chunk内容
+    let textChunkCount = 0; // 用于计算进度
+    const chartData = createDefaultChartData();
+    const sources = createDefaultSources();
+    
+    // 循环读取流数据
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      // 解码二进制数据
+      const chunk = decoder.decode(value, { stream: true });
+      
+      // 合并之前未完成的块
+      const textToParse = partialChunk + chunk;
+      
+      // 按照SSE规范解析数据，每个事件块以\n\n分隔
+      const eventChunks = textToParse.split('\n\n');
+      
+      // 保存最后一个可能不完整的块
+      partialChunk = eventChunks.pop() || '';
+      
+      // 处理每个完整的事件块
+      for (const eventText of eventChunks) {
+        if (!eventText.trim() || !eventText.startsWith('data:')) continue;
+        console.log(`收到事件: ${eventText}`);
+        try {
+          // 解析事件数据
+          const jsonText = eventText.replace(/^data:\s*/, '');
+          const eventData = JSON.parse(jsonText);
+          
+          
+          // 处理不同类型的事件
+          if (eventData.event === 'workflow_started') {
+            console.log(`工作流开始: ${eventData.workflow_run_id}`);
+            if (jobUpdateCallback) {
+              await jobUpdateCallback(`# ${question}\n\n正在生成研究内容...\n\n`, 10);
+            }
+          }
+          else if (eventData.event === 'text_chunk' && eventData.data.text) {
+            // 累积text_chunk内容
+            accumulatedContent += eventData.data.text;
+            textChunkCount++;
+            
+            // 每收到text_chunk都立即更新内容
+            const progressContent = `# ${question}\n\n## 研究内容\n\n${accumulatedContent}`;
+            // 计算进度，范围在20-80之间
+            const progress = Math.min(80, 20 + Math.floor(textChunkCount / 2));
+            
+            // 打印接收到的内容片段
+            console.log(`收到text_chunk ${textChunkCount}:`, eventData.data.text.substring(0, 50) + (eventData.data.text.length > 50 ? '...' : ''));
+            
+            // 每次都更新
+            if (jobUpdateCallback) {
+              console.log(`更新研究内容，当前累积长度: ${accumulatedContent.length}字符`);
+              await jobUpdateCallback(progressContent, progress);
+            }
+          }
+          else if (eventData.event === 'node_finished' && eventData.data.outputs) {
+            // 从节点输出中提取数据
+            if (eventData.data.outputs.research_content || eventData.data.outputs.content) {
+              finalContent = eventData.data.outputs.research_content || eventData.data.outputs.content;
+            }
+            if (eventData.data.outputs.chart_data) {
+              try {
+                const chartDataOutput = 
+                  typeof eventData.data.outputs.chart_data === 'string' 
+                    ? JSON.parse(eventData.data.outputs.chart_data) 
+                    : eventData.data.outputs.chart_data;
+                
+                Object.assign(chartData, chartDataOutput);
+              } catch (e) {
+                console.warn('解析图表数据失败:', e);
+              }
+            }
+            if (eventData.data.outputs.sources) {
+              try {
+                const sourcesOutput = 
+                  typeof eventData.data.outputs.sources === 'string'
+                    ? JSON.parse(eventData.data.outputs.sources)
+                    : eventData.data.outputs.sources;
+                
+                if (Array.isArray(sourcesOutput) && sourcesOutput.length > 0) {
+                  // 转换源数据格式
+                  const formattedSources = sourcesOutput.map((src: Record<string, unknown>, index: number) => ({
+                    id: (src.id as string) || `${index + 1}`,
+                    title: (src.title as string) || `来源 ${index + 1}`,
+                    url: (src.url as string) || '#',
+                    source: (src.source as string) || 'Unknown',
+                    sourceId: (src.sourceId as string) || `source-${index + 1}`
+                  }));
+                  
+                  if (formattedSources.length > 0) {
+                    sources.length = 0; // 清空默认来源
+                    sources.push(...formattedSources);
+                  }
+                }
+              } catch (e) {
+                console.warn('解析来源数据失败:', e);
+              }
+            }
+          }
+          else if (eventData.event === 'workflow_finished') {
+            console.log(`工作流完成: ${eventData.workflow_run_id}, 状态: ${eventData.data.status}`);
+            
+            // 处理最终输出结果
+            if (eventData.data.outputs) {
+              if (!finalContent && eventData.data.outputs.research_content) {
+                finalContent = eventData.data.outputs.research_content;
+              } else if (!finalContent && eventData.data.outputs.content) {
+                finalContent = eventData.data.outputs.content;
+              } else if (!finalContent && eventData.data.outputs.answer) {
+                finalContent = eventData.data.outputs.answer;
+              }
+            }
+            
+            // 如果没有获得完整内容但有累积的text_chunk内容
+            if (!finalContent && accumulatedContent) {
+              console.log('使用累积的text_chunk内容作为最终结果');
+              finalContent = `# ${question}\n\n## 研究内容\n\n${accumulatedContent}`;
+            } else if (!finalContent) {
+              console.log('未能获取任何内容，使用默认内容');
+              finalContent = `# ${question}\n\n## 研究概述\n\n由于某些原因，未能获取到研究内容。请稍后再试。`;
+            }
+            
+            // 最终更新进度为90%
+            if (jobUpdateCallback && finalContent) {
+              await jobUpdateCallback(finalContent, 90);
+            }
+          }
+        } catch (e) {
+          console.error('解析事件数据出错:', e, eventText);
+        }
+      }
+    }
+    
+    return {
+      content: finalContent,
+      chartData,
+      sources
+    };
+  } catch (error) {
+    console.error('启动Dify工作流出错:', error);
+    // 出错时返回默认数据
+    return {
+      content: `# ${question}\n\n## 研究概述\n\n获取研究内容时出错，请稍后再试。\n\n错误信息: ${error instanceof Error ? error.message : '未知错误'}`,
+      chartData: createDefaultChartData(),
+      sources: createDefaultSources()
+    };
+  }
+}
+
+// 从Dify Workflow获取研究内容
+async function getResearchFromDify(question: string, userId: string, jobUpdateCallback?: (content: string, progress: number) => Promise<void>): Promise<{
+  content: string;
+  chartData: ChartData;
+  sources: Source[];
+}> {
+  // 直接使用流式模式获取研究内容，传入更新回调
+  return await startDifyWorkflow(question, userId, jobUpdateCallback);
+}
+
+// 创建默认图表数据
+function createDefaultChartData(): ChartData {
+  return {
     type: 'line',
     labels: ['2020', '2025', '2030', '2035', '2040', '2045', '2050'],
     datasets: [
       {
-        label: '全球平均温度变化(°C)',
+        label: '数据集',
         data: [0, 0.5, 1.1, 1.7, 2.2, 2.8, 3.3],
         borderColor: 'rgb(255, 99, 132)',
-      },
-      {
-        label: '海平面上升(cm)',
-        data: [0, 5, 12, 20, 30, 42, 55],
-        borderColor: 'rgb(54, 162, 235)',
       }
     ]
   };
+}
 
-  // 模拟来源数据
-  const sources: Source[] = [
+// 创建默认来源
+function createDefaultSources(): Source[] {
+  return [
     {
       id: '1',
       title: 'IPCC第六次评估报告',
@@ -76,63 +289,8 @@ function generateMockData(question: string) {
       url: 'https://climate.nasa.gov/vital-signs/',
       source: 'NASA',
       sourceId: 'nasa-vital-signs',
-
-    },
-    {
-      id: '3',
-      title: '世界气象组织年度报告',
-      url: 'https://public.wmo.int/en',
-      source: 'WMO',
-      sourceId: 'wmo-annual',
-
     }
   ];
-
-  // 生成报告内容
-  const content = `# ${question}
-
-## 研究概述
-
-根据最新的气候科学研究数据，我们对未来气候变化趋势进行了深入分析。主要发现包括：
-
-### 1. 温度变化趋势
-
-- 到2050年，全球平均温度预计将升高3.3°C
-- 极端天气事件频率将显著增加
-- 热浪和干旱将更加频繁和持久
-
-### 2. 海平面上升
-
-- 预计到2050年海平面将上升55厘米
-- 沿海地区面临更大的洪水风险
-- 小岛国家尤其容易受到影响
-
-### 3. 生态系统影响
-
-- 生物多样性持续减少
-- 珊瑚礁系统面临严重威胁
-- 极地冰盖加速融化
-
-## 数据分析
-
-附图显示了温度变化和海平面上升的预测趋势。这些预测基于多个气候模型的综合分析。
-
-## 缓解措施建议
-
-1. 加速可再生能源转型
-2. 提高能源使用效率
-3. 加强生态系统保护
-4. 发展气候适应性策略
-
-## 参考来源
-
-本研究基于IPCC、NASA和WMO等权威机构的最新研究数据和报告。详细来源请见引用列表。`;
-
-  return {
-    content,
-    chartData,
-    sources
-  };
 }
 
 // 创建worker
@@ -141,48 +299,55 @@ const worker = new Worker<ResearchJobData>(
   async (job: Job<ResearchJobData>) => {
     try {
       console.log(`开始处理任务 [${job.id}]:`, job.data);
-      const { resultId, question } = job.data;
+      const { resultId, question, userId } = job.data;
       
       // 更新任务状态为处理中
       await job.updateProgress({ status: 'processing', progress: 0 });
       
-      // 模拟研究处理过程
-      let progress = 0;
-      const steps = ['收集数据', '分析中', '生成报告'];
-      
-      for (const step of steps) {
-        // 更新进度
-        progress += 33;
+      // 创建实时更新回调函数
+      const updateCallback = async (content: string, progress: number) => {
+        // 更新任务进度和部分内容
         await job.updateProgress({ 
-          status: step,
-          progress: Math.min(progress, 99)  // 确保不超过99%
+          status: 'generating', 
+          progress,
+          partialContent: content 
         });
         
-        // 模拟处理时间 - 随机1-3秒
-        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-      }
-
-      // 生成模拟数据
-      const mockData = generateMockData(question.question);
+        // 每次都更新数据库中的部分结果
+        console.log(`更新数据库中的研究结果 ID:${resultId}, 内容长度:${content.length}字符`);
+        console.log(`内容预览: ${content.substring(0, 100)}...`);
+        
+        await dbService.updateResearchResult(resultId, {
+          markdownContent: content,
+          isComplete: false,
+          status: 'generating'
+        });
+      };
+      
+      // 从Dify获取研究内容，传入更新回调
+      const researchData = await getResearchFromDify(question.question, userId, updateCallback);
 
       // 更新最终进度
       await job.updateProgress({ status: 'completed', progress: 100 });
 
       // 生成研究报告内容
       const result = {
-        markdownContent: mockData.content,
-        sources: mockData.sources,
+        markdownContent: researchData.content,
+        sources: researchData.sources,
         data: {
-          charts: [mockData.chartData],
+          charts: [researchData.chartData],
           summary: {
-            temperatureChange: 3.3,
-            seaLevelRise: 55,
             confidenceLevel: 0.95
           }
         },
         isComplete: true,
         status: 'completed'
       };
+
+      // 打印最终内容
+      console.log(`最终研究内容长度: ${researchData.content.length}字符`);
+      console.log(`最终内容预览:\n${researchData.content.substring(0, 300)}...\n`);
+      console.log(`来源数量: ${researchData.sources.length}`);
 
       // 更新数据库中的研究结果
       await dbService.updateResearchResult(resultId, result);
