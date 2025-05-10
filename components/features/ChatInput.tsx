@@ -5,87 +5,227 @@ import {
   Send,
   Paperclip, 
   Mic, 
-  Bot, 
-  Search, 
-  Book, 
-  Globe, 
-  Database, 
   FileText,
   X,
-  Loader2
+  Loader2,
+  MessageCircleIcon,
+  BookOpenIcon,
+  BuildingIcon,
+  FactoryIcon,
+  SearchIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  CornerDownLeftIcon
 } from "lucide-react";
-import { 
-  ChatInputProps,
-  UploadedFile,
-  SourceOption,
-  sourceOptions,
-  modelOptions
-} from "@/types/chat";
+import type { UploadedFile, ResearchType, ChatMode } from "@/types/chat";
+import { useSearchData } from "@/hooks/useSearchData";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// 设置图标
-const sourceOptionsWithIcons: SourceOption[] = [
-  { ...sourceOptions[0], icon: <Book className="w-4 h-4" /> },
-  { ...sourceOptions[1], icon: <Globe className="w-4 h-4" /> },
-  { ...sourceOptions[2], icon: <Database className="w-4 h-4" /> },
-  { ...sourceOptions[3], icon: <Search className="w-4 h-4" /> },
-];
+
+type SuggestionType = ResearchType;
+
+interface Suggestion {
+  text: string;
+  subText?: string;
+  type: SuggestionType;
+  highlight?: string[];
+}
+
+export interface ChatInputProps {
+  /** 聊天模式提交回调函数 */
+  onChatSubmit?: (
+    message: string, 
+    files: UploadedFile[]
+  ) => void;
+  /** 研究模式提交回调函数 */
+  onResearchSubmit: (
+    message: string, 
+    files: UploadedFile[],
+    type: ResearchType
+  ) => void;
+  /** 是否正在加载中 */
+  isLoading?: boolean;
+  /** 输入框占位符文本 */
+  placeholder?: string;
+  /** 自定义类名 */
+  className?: string;
+  /** 是否启用聊天模式 */
+  enableChatMode?: boolean;
+  /** 默认模式 */
+  defaultMode?: ChatMode;
+  /** 默认研究类型 */
+  defaultResearchType?: ResearchType;
+}
 
 export function ChatInput({
-  onQuestionSubmit,
+  onChatSubmit,
+  onResearchSubmit,
   isLoading = false,
   placeholder = "输入您的问题或研究主题...",
   className = "",
+  enableChatMode = true,
+  defaultMode = "RESEARCH",
+  defaultResearchType = "CORPORATE"
 }: ChatInputProps) {
+  const { companies, industries, isSearchDataLoading, searchError } = useSearchData();
   const [message, setMessage] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [showFilePreview, setShowFilePreview] = useState(false);
   const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("default");
-  const [selectedSource, setSelectedSource] = useState("all");
-  const [menuState, setMenuState] = useState<{
-    model: boolean;
-    source: boolean;
-  }>({
-    model: false,
-    source: false
-  });
+  const [chatMode, setChatMode] = useState<ChatMode>(defaultMode);
+  const [researchType, setResearchType] = useState<ResearchType>(defaultResearchType);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [isValidInput, setIsValidInput] = useState(false);
   
   const [hoverState, setHoverState] = useState<{
-    model: boolean;
-    source: boolean;
     upload: boolean;
     voice: boolean;
   }>({
-    model: false,
-    source: false,
     upload: false,
     voice: false
   });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  // 新增：监听点击外部关闭菜单
-  useEffect(() => {
-    if (!menuState.model && !menuState.source) return;
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuState({ model: false, source: false });
-      }
+  // 处理键盘导航
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev < suggestions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev > 0 ? prev - 1 : suggestions.length - 1
+        );
+        break;
+      case 'Enter':
+        if (selectedSuggestionIndex >= 0) {
+          e.preventDefault();
+          handleSuggestionClick(suggestions[selectedSuggestionIndex].text);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+        break;
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuState]);
+  };
+
+  // 搜索建议处理
+  useEffect(() => {
+    if (chatMode === "CHAT") {
+      setIsValidInput(true);
+      setSuggestions([]);
+      return;
+    }
+
+    const query = message.trim().toLowerCase();
+    if (!query) {
+      setSuggestions([]);
+      setIsValidInput(false);
+      return;
+    }
+
+    if (researchType === "CORPORATE") {
+      const matches = companies
+        .filter(company => 
+          company.name.toLowerCase().includes(query) || 
+          company.code.toLowerCase().includes(query)
+        )
+        .map(company => ({
+          text: company.name,
+          subText: `${company.code} · ${company.industry}`,
+          type: "CORPORATE" as const,
+          highlight: [
+            company.name.toLowerCase().includes(query) ? company.name : '',
+            company.code.toLowerCase().includes(query) ? company.code : ''
+          ].filter(Boolean)
+        }));
+      setSuggestions(matches);
+      setIsValidInput(matches.length > 0);
+    } else {
+      const matches = industries
+        .filter(industry => 
+          industry.name.toLowerCase().includes(query) ||
+          industry.subIndustries.some(sub => sub.toLowerCase().includes(query))
+        )
+        .map(industry => ({
+          text: industry.name,
+          subText: industry.subIndustries.join(' · '),
+          type: "INDUSTRY" as const,
+          highlight: [
+            industry.name.toLowerCase().includes(query) ? industry.name : '',
+            ...industry.subIndustries.filter(sub => 
+              sub.toLowerCase().includes(query)
+            )
+          ].filter(Boolean)
+        }));
+      setSuggestions(matches);
+      setIsValidInput(matches.length > 0);
+    }
+  }, [message, researchType, chatMode, companies, industries]);
+
+  // 修改点击处理函数
+  const handleSuggestionClick = (text: string) => {
+    setMessage(text);
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+    setIsValidInput(true);
+    inputRef.current?.focus();
+  };
+
+  // 添加点击外部关闭建议框
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current && 
+        !suggestionsRef.current.contains(event.target as Node) &&
+        !inputRef.current?.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // 高亮匹配文本
+  const highlightText = (text: string, highlights: string[]) => {
+    if (!highlights.length) return text;
+    
+    let result = text;
+    highlights.forEach(highlight => {
+      if (!highlight) return;
+      const regex = new RegExp(`(${highlight})`, 'gi');
+      result = result.replace(regex, '<mark class="bg-primary/10 text-primary rounded px-0.5">$1</mark>');
+    });
+    return result;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim() && !isLoading) {
-      if (onQuestionSubmit) {
-        onQuestionSubmit(message, uploadedFiles, selectedModel, selectedSource);
+    if (message.trim() && !isLoading && isValidInput) {
+      if (chatMode === "CHAT" && onChatSubmit) {
+        onChatSubmit(message, uploadedFiles);
+      } else {
+        onResearchSubmit(message, uploadedFiles, researchType);
       }
       setMessage("");
-      // 不清除文件，让用户可以基于同一组文件继续提问
+      setShowSuggestions(false);
     }
   };
 
@@ -139,24 +279,8 @@ export function ChatInput({
     }
   };
 
-  // 处理按钮点击，用于打开/关闭菜单
-  const toggleMenu = (menu: 'model' | 'source') => {
-    // 关闭其他菜单
-    if (menu === 'model') {
-      setMenuState({
-        model: !menuState.model,
-        source: false
-      });
-    } else {
-      setMenuState({
-        model: false,
-        source: !menuState.source
-      });
-    }
-  };
-
   return (
-    <div className={`w-full ${className}`} ref={menuRef}>
+    <div className={`w-full ${className}`}>
       {/* 文件预览区域 */}
       <div className="flex flex-wrap gap-2 mb-3">
         {uploadedFiles.map((file) => (
@@ -216,130 +340,119 @@ export function ChatInput({
       >
         {/* 输入部分 */}
         <div className="relative flex items-center w-full">
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder={placeholder}
-            disabled={isLoading}
-            className="w-full px-4 py-3 pr-36 text-sm border rounded-lg bg-background focus:ring-1 focus:ring-primary outline-none"
-            aria-label="聊天输入框"
-          />
-          
-          {/* 操作按钮区域 */}
-          <div className="absolute right-2 flex items-center gap-1">
-            {/* 选择模型按钮 */}
-            <div className="relative">
-              <button
-                type="button"
-                className={`p-2 rounded-md transition-colors ${
-                  menuState.model
-                    ? 'bg-primary/10 text-primary'
-                    : hoverState.model
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onMouseEnter={() => setHoverState(prev => ({ ...prev, model: true }))}
-                onMouseLeave={() => setHoverState(prev => ({ ...prev, model: false }))}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleMenu('model');
-                }}
-                title="选择模型"
-                aria-label="选择模型"
+          <div className="relative flex-1">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <SearchIcon className="w-4 h-4" />
+            </div>
+            <input
+              ref={inputRef}
+              type="text"
+              value={message}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                setShowSuggestions(true);
+                setSelectedSuggestionIndex(-1);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                chatMode === "RESEARCH" 
+                  ? researchType === "CORPORATE"
+                    ? "输入公司名称或股票代码..."
+                    : "输入行业名称..."
+                  : placeholder
+              }
+              disabled={isLoading}
+              className={`w-full pl-10 pr-24 py-3 text-sm border rounded-lg bg-background focus:ring-1 focus:ring-primary outline-none ${
+                chatMode === "RESEARCH" && !isValidInput && message.trim() 
+                  ? "border-destructive" 
+                  : ""
+              }`}
+              aria-label="聊天输入框"
+            />
+            
+            {/* 搜索建议下拉框 */}
+            {showSuggestions && chatMode === "RESEARCH" && (
+              <div 
+                ref={suggestionsRef}
+                className="absolute top-full left-0 w-full mt-1 bg-background border rounded-lg shadow-lg z-10 max-h-[280px] overflow-y-auto"
               >
-                <Bot className="w-4 h-4" />
-              </button>
-              
-              {menuState.model && (
-                <div 
-                  className="absolute bottom-full right-0 mb-2 w-56 bg-card border rounded-lg shadow-lg z-10"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="p-2 border-b">
-                    <h3 className="text-xs font-medium">选择AI模型</h3>
-                  </div>
-                  <div className="p-1">
-                    {modelOptions.map(model => (
+                <div className="p-1.5">
+                  {isSearchDataLoading ? (
+                    // 加载状态显示骨架屏
+                    Array(5).fill(0).map((_, index) => (
+                      <div key={index} className="flex items-start gap-3 px-3 py-2">
+                        <Skeleton className="h-4 w-4 rounded-full" />
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-3/4 mb-2" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
+                      </div>
+                    ))
+                  ) : searchError ? (
+                    <div className="px-3 py-2 text-sm text-destructive">
+                      {searchError}
+                    </div>
+                  ) : suggestions.length > 0 ? (
+                    suggestions.map((suggestion, index) => (
                       <button
-                        key={model.id}
+                        key={index}
                         type="button"
-                        className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                          selectedModel === model.id 
-                            ? 'bg-primary/10 text-primary' 
-                            : 'hover:bg-accent'
+                        className={`flex items-start gap-3 w-full px-3 py-2 text-sm rounded-md transition-colors ${
+                          index === selectedSuggestionIndex
+                            ? "bg-accent text-accent-foreground"
+                            : "hover:bg-accent/50"
                         }`}
-                        onClick={() => {
-                          setSelectedModel(model.id);
-                          setMenuState(prev => ({ ...prev, model: false }));
-                        }}
+                        onClick={() => handleSuggestionClick(suggestion.text)}
+                        onMouseEnter={() => setSelectedSuggestionIndex(index)}
                       >
-                        <div>{model.name}</div>
-                        {model.description && (
-                          <div className="text-xs text-muted-foreground mt-0.5">{model.description}</div>
+                        {suggestion.type === "CORPORATE" ? (
+                          <BuildingIcon className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                        ) : (
+                          <FactoryIcon className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                        )}
+                        <div className="flex-1 text-left">
+                          <div 
+                            dangerouslySetInnerHTML={{ 
+                              __html: highlightText(suggestion.text, suggestion.highlight || [])
+                            }} 
+                          />
+                          {suggestion.subText && (
+                            <div 
+                              className="text-xs text-muted-foreground mt-0.5"
+                              dangerouslySetInnerHTML={{ 
+                                __html: highlightText(suggestion.subText, suggestion.highlight || [])
+                              }}
+                            />
+                          )}
+                        </div>
+                        {index === selectedSuggestionIndex && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <CornerDownLeftIcon className="w-3 h-3" />
+                            <span>选择</span>
+                          </div>
                         )}
                       </button>
-                    ))}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      未找到匹配的{researchType === "CORPORATE" ? "企业" : "行业"}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            
-            {/* 选择知识来源按钮 */}
-            <div className="relative">
-              <button
-                type="button"
-                className={`p-2 rounded-md transition-colors ${
-                  menuState.source
-                    ? 'bg-primary/10 text-primary'
-                    : hoverState.source
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onMouseEnter={() => setHoverState(prev => ({ ...prev, source: true }))}
-                onMouseLeave={() => setHoverState(prev => ({ ...prev, source: false }))}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleMenu('source');
-                }}
-                title="选择知识来源"
-                aria-label="选择知识来源"
-              >
-                <Search className="w-4 h-4" />
-              </button>
-              
-              {menuState.source && (
-                <div 
-                  className="absolute bottom-full right-0 mb-2 w-40 bg-card border rounded-lg shadow-lg z-10"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="p-2 border-b">
-                    <h3 className="text-xs font-medium">选择知识来源</h3>
-                  </div>
-                  <div className="p-1">
-                    {sourceOptionsWithIcons.map(source => (
-                      <button
-                        key={source.id}
-                        type="button"
-                        className={`w-full text-left px-3 py-2 text-sm rounded-md flex items-center gap-2 transition-colors ${
-                          selectedSource === source.id 
-                            ? 'bg-primary/10 text-primary' 
-                            : 'hover:bg-accent'
-                        }`}
-                        onClick={() => {
-                          setSelectedSource(source.id);
-                          setMenuState(prev => ({ ...prev, source: false }));
-                        }}
-                      >
-                        <span>{source.icon}</span>
-                        <span>{source.name}</span>
-                      </button>
-                    ))}
-                  </div>
+                <div className="px-3 py-2 border-t text-xs text-muted-foreground flex items-center gap-2">
+                  <ArrowUpIcon className="w-3 h-3" />
+                  <ArrowDownIcon className="w-3 h-3" />
+                  <span>使用方向键选择</span>
+                  <CornerDownLeftIcon className="w-3 h-3 ml-1" />
+                  <span>确认</span>
                 </div>
-              )}
-            </div>
-            
+              </div>
+            )}
+          </div>
+
+          {/* 操作按钮区域 */}
+          <div className="absolute right-2 flex items-center gap-1">
             {/* 文件上传按钮 */}
             <button
               type="button"
@@ -389,9 +502,9 @@ export function ChatInput({
             {/* 发送按钮 */}
             <button
               type="submit"
-              disabled={isLoading || (!message.trim() && uploadedFiles.length === 0)}
+              disabled={isLoading || !message.trim() || (chatMode === "RESEARCH" && !isValidInput)}
               className={`p-2 rounded-md transition-colors ${
-                isLoading || (!message.trim() && uploadedFiles.length === 0)
+                isLoading || !message.trim() || (chatMode === "RESEARCH" && !isValidInput)
                   ? 'opacity-50 cursor-not-allowed text-muted-foreground'
                   : 'text-primary hover:bg-accent'
               }`}
@@ -406,19 +519,102 @@ export function ChatInput({
           </div>
         </div>
         
-        <div className="mt-2 text-xs text-muted-foreground text-center flex justify-center items-center gap-2">
+        {/* 模式切换区域 */}
+        <div className="mt-2 text-xs text-muted-foreground text-center flex justify-center items-center gap-4">
           <span>
-            Climate AI 将使用您的查询提供研究见解和数据分析
+            Climate AI 将{
+              chatMode === "RESEARCH" 
+                ? `为您分析${researchType === "CORPORATE" ? "企业" : "行业"}数据`
+                : "为您解答问题"
+            }
           </span>
-          <div className="flex items-center gap-1">
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-secondary text-xs">
-              <Bot className="w-3 h-3" />
-              <span>{modelOptions.find(m => m.id === selectedModel)?.name || "默认模型"}</span>
-            </span>
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-secondary text-xs">
-              {sourceOptionsWithIcons.find(s => s.id === selectedSource)?.icon}
-              <span>{sourceOptionsWithIcons.find(s => s.id === selectedSource)?.name}</span>
-            </span>
+          <div className="flex items-center gap-3">
+            {/* 对话/研究模式切换 */}
+            {enableChatMode && (
+              <div className="flex items-center border rounded-full p-0.5 bg-secondary hover:bg-secondary/80 transition-colors">
+                <button 
+                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs transition-all ${
+                    chatMode === "CHAT" 
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                      : "hover:bg-accent/50 hover:text-accent-foreground"
+                  }`}
+                  onClick={() => setChatMode("CHAT")}
+                  type="button"
+                >
+                  <MessageCircleIcon className="w-3 h-3" />
+                  <span>对话</span>
+                </button>
+                <button 
+                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs transition-all ${
+                    chatMode === "RESEARCH" 
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                      : "hover:bg-accent/50 hover:text-accent-foreground"
+                  }`}
+                  onClick={() => setChatMode("RESEARCH")}
+                  type="button"
+                >
+                  <BookOpenIcon className="w-3 h-3" />
+                  <span>研究</span>
+                </button>
+              </div>
+            )}
+
+            {/* 研究类型选择 */}
+            {(chatMode === "RESEARCH" || !enableChatMode) && (
+              <div className="flex items-center gap-3 border-l pl-3">
+                <label className={`flex items-center gap-1.5 cursor-pointer group ${
+                  researchType === "CORPORATE" 
+                    ? "text-primary" 
+                    : "text-muted-foreground"
+                }`}>
+                  <div className={`w-3.5 h-3.5 rounded-full border transition-colors ${
+                    researchType === "CORPORATE"
+                      ? "border-primary bg-primary/10"
+                      : "border-muted-foreground group-hover:border-primary/50"
+                  }`}>
+                    <div className={`w-full h-full rounded-full transform transition-transform scale-0 ${
+                      researchType === "CORPORATE" ? "bg-primary scale-50" : ""
+                    }`} />
+                  </div>
+                  <input
+                    type="radio"
+                    className="sr-only"
+                    checked={researchType === "CORPORATE"}
+                    onChange={() => setResearchType("CORPORATE")}
+                  />
+                  <div className="flex items-center gap-1">
+                    <BuildingIcon className="w-3 h-3" />
+                    <span>企业</span>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-1.5 cursor-pointer group ${
+                  researchType === "INDUSTRY" 
+                    ? "text-primary" 
+                    : "text-muted-foreground"
+                }`}>
+                  <div className={`w-3.5 h-3.5 rounded-full border transition-colors ${
+                    researchType === "INDUSTRY"
+                      ? "border-primary bg-primary/10"
+                      : "border-muted-foreground group-hover:border-primary/50"
+                  }`}>
+                    <div className={`w-full h-full rounded-full transform transition-transform scale-0 ${
+                      researchType === "INDUSTRY" ? "bg-primary scale-50" : ""
+                    }`} />
+                  </div>
+                  <input
+                    type="radio"
+                    className="sr-only"
+                    checked={researchType === "INDUSTRY"}
+                    onChange={() => setResearchType("INDUSTRY")}
+                  />
+                  <div className="flex items-center gap-1">
+                    <FactoryIcon className="w-3 h-3" />
+                    <span>行业</span>
+                  </div>
+                </label>
+              </div>
+            )}
           </div>
         </div>
       </form>

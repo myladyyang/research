@@ -3,19 +3,22 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Research } from "@/types/chat";
+import { Research, UploadedFile } from "@/types/chat";
 import Link from "next/link";
 import { useResearchManager } from "@/hooks/useResearchManager";
 import { 
   ChartLineIcon, 
-  PlusIcon, 
   Loader2Icon, 
   AlertTriangleIcon,
   ArrowRightIcon,
   ClockIcon,
   CheckCircleIcon,
-  CircleIcon
+  CircleIcon,
+  Building2Icon,
+  FactoryIcon
 } from "lucide-react";
+import { ChatInput } from "@/components/features/ChatInput";
+import { ResearchType } from "@/types/chat";
 
 export default function MySpacePage() {
   const { status } = useSession();
@@ -57,6 +60,102 @@ export default function MySpacePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
+  // 按研究类型分组研究报告
+  const corporateResearches = researches.filter(research => {
+    return research.type === "CORPORATE" || 
+           (research.request && 
+            typeof research.request === 'object' && 
+            'type' in research.request && 
+            research.request.type === "CORPORATE");
+  });
+
+  const industryResearches = researches.filter(research => {
+    return research.type === "INDUSTRY" || 
+           (research.request && 
+            typeof research.request === 'object' && 
+            'type' in research.request && 
+            research.request.type === "INDUSTRY");
+  });
+
+  // 未分类的研究报告
+  const uncategorizedResearches = researches.filter(research => {
+    return !research.type && 
+           (!research.request || 
+            typeof research.request !== 'object' || 
+            !('type' in research.request));
+  });
+
+  // 处理研究提交
+  const handleResearchSubmit = async (message: string, files: UploadedFile[], type: ResearchType) => {
+    console.log("Research 模式:", message, type, files);
+    if (status !== "authenticated") {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      // 解析企业或行业信息
+      let researchData: {
+        companyCode?: string;
+        companyName?: string;
+        industry?: string;
+        industryName?: string;
+      } = {};
+
+      // 根据类型处理数据
+      if (type === "CORPORATE") {
+        // 检查是否包含股票代码格式 "公司名称 (股票代码)"
+        const match = message.match(/^(.+?)\s*(?:\(([^)]+)\))?$/);
+        if (match) {
+          researchData = {
+            companyName: match[1].trim(),
+            companyCode: match[2]?.trim() || undefined,
+            industry: "未分类" // 可选，设置默认行业
+          };
+        } else {
+          researchData = {
+            companyName: message,
+          };
+        }
+      } else {
+        researchData = {
+          industryName: message,
+        };
+      }
+
+      // 创建API请求
+      const response = await fetch(`/api/research/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: `${type === "CORPORATE" ? "企业" : "行业"}气候风险分析: ${message}`,
+          mode: "RESEARCH",
+          type: type.toUpperCase(),
+          files: files.map(f => ({ id: f.id, name: f.name, size: f.size, type: f.type, url: f.url })),
+          ...researchData
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('创建研究报告失败');
+      }
+      
+      const { id } = await response.json();
+      
+      // 重定向到研究页面
+      if (id) {
+        router.push(`/research/${id}`);
+      } else {
+        throw new Error('未获取到有效的研究ID');
+      }
+    } catch (error) {
+      console.error("创建研究失败:", error);
+      setError("创建研究失败，请稍后重试");
+    }
+  };
+
   // 加载状态
   if (status === "loading" || isLoading) {
     return (
@@ -74,16 +173,81 @@ export default function MySpacePage() {
     return null; // 重定向会处理，无需渲染
   }
 
+  // 渲染研究报告卡片
+  const renderResearchCard = (research: Research) => (
+    <Link 
+      href={`/research/${research.id}`}
+      key={research.id} 
+      className="bg-white shadow hover:shadow-md rounded-lg transition-shadow flex flex-col h-full"
+    >
+      <div className="p-5 flex flex-col h-full">
+        <div className="flex justify-between items-start">
+          <h3 className="text-lg font-medium text-gray-900 line-clamp-1">{research.title}</h3>
+          <span 
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              research.currentResult?.isComplete 
+                ? 'bg-green-100 text-green-800'
+                : 'bg-blue-100 text-blue-800'
+            }`}
+          >
+            {research.currentResult?.isComplete 
+              ? <><CheckCircleIcon className="mr-1 h-3 w-3" /> 已完成</>
+              : <><CircleIcon className="mr-1 h-3 w-3" /> 进行中</>
+            }
+          </span>
+        </div>
+        <div className="mt-2 text-sm text-gray-500 line-clamp-2 flex-grow">
+          {research.currentResult?.summary || "暂无摘要"}
+        </div>
+        <div className="mt-4 flex items-center justify-between pt-3 border-t border-gray-100">
+          <div className="flex items-center text-sm text-gray-500">
+            <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+            <p>{new Date(research.createdAt || '').toLocaleDateString()}</p>
+          </div>
+          <div className="flex items-center text-sm font-medium text-primary">
+            <span>查看详情</span>
+            <ArrowRightIcon className="ml-1 h-4 w-4" />
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+
+  // 渲染研究报告分类列表
+  const renderResearchCategorySection = (
+    title: string, 
+    icon: React.ReactNode, 
+    researchList: Research[], 
+    emptyMessage: string
+  ) => (
+    <div className="mb-8">
+      <div className="flex items-center mb-4">
+        {icon}
+        <h3 className="text-lg font-medium text-gray-900 ml-2">{title}</h3>
+      </div>
+      
+      {researchList.length === 0 ? (
+        <div className="bg-white shadow rounded-lg p-4">
+          <p className="text-gray-500 text-center py-4">{emptyMessage}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {researchList.map(renderResearchCard)}
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="bg-background min-h-full w-full pb-8">
+    <div className="bg-gray-50 min-h-full w-full pb-8">
       {/* 页面标题 */}
-      <div className="bg-white border-b mb-8">
-        <div className="w-full px-4 sm:px-6 py-4">
+      <div className="bg-white border-b">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <h1 className="text-2xl font-bold text-gray-900">我的空间</h1>
         </div>
       </div>
 
-      <div className="w-full px-4 sm:px-6">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 mt-8">
         {/* 错误提示 */}
         {error && (
           <div className="mb-8 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
@@ -94,72 +258,57 @@ export default function MySpacePage() {
           </div>
         )}
 
-        {/* 研究报告部分 */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center">
-              <ChartLineIcon className="h-6 w-6 text-primary mr-2" />
-              <h2 className="text-xl font-semibold text-gray-900">我的研究报告</h2>
-            </div>
-
-          </div>
-
-          {researches.length === 0 ? (
-            <div className="bg-white shadow rounded-lg p-6">
-              <div className="flex items-center justify-center flex-col py-8">
-                <ChartLineIcon className="h-12 w-12 text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">暂无研究报告</h3>
-                <p className="text-sm text-gray-500 mb-4 max-w-md text-center">
-                  创建研究报告来分析数据，获取洞见，并分享您的发现
-                </p>
-                <Link
-                  href="/research/new"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-                >
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  新建研究
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {researches.map((research) => (
-                <Link 
-                  href={`/research/${research.id}`}
-                  key={research.id} 
-                  className="block bg-white shadow hover:shadow-md rounded-lg transition-shadow"
-                >
-                  <div className="p-5">
-                    <div className="flex justify-between">
-                      <h3 className="text-lg font-medium text-gray-900">{research.title}</h3>
-                      <span 
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          research.currentResult?.isComplete 
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {research.currentResult?.isComplete 
-                          ? <><CheckCircleIcon className="mr-1 h-3 w-3" /> 已完成</>
-                          : <><CircleIcon className="mr-1 h-3 w-3" /> 进行中</>
-                        }
-                      </span>
-                    </div>
-                    <div className="mt-2 flex items-center text-sm text-gray-500">
-                      <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                      <p>创建于 {new Date(research.createdAt || '').toLocaleDateString()}</p>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm font-medium text-primary">
-                      <span>查看详情</span>
-                      <ArrowRightIcon className="ml-1 h-4 w-4" />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+        {/* ChatInput 替代新建研究按钮 */}
+        <div className="mb-8 bg-white rounded-xl shadow-sm p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">创建新研究</h2>
+          <ChatInput 
+            onResearchSubmit={handleResearchSubmit}
+            isLoading={false}
+            placeholder="输入您想研究的企业或行业..."
+            className="w-full"
+            enableChatMode={false}
+            defaultMode="RESEARCH"
+            defaultResearchType="CORPORATE"
+          />
         </div>
 
+        {researches.length === 0 ? (
+          <div className="bg-white shadow rounded-lg p-6 mt-8">
+            <div className="flex items-center justify-center flex-col py-8">
+              <ChartLineIcon className="h-12 w-12 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">暂无研究报告</h3>
+              <p className="text-sm text-gray-500 mb-4 max-w-md text-center">
+                使用上方的输入框创建研究报告，分析数据，获取洞见
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* 企业研究部分 */}
+            {renderResearchCategorySection(
+              "企业气候风险研究", 
+              <Building2Icon className="h-5 w-5 text-primary" />, 
+              corporateResearches,
+              "暂无企业研究"
+            )}
+
+            {/* 行业研究部分 */}
+            {renderResearchCategorySection(
+              "行业气候风险研究", 
+              <FactoryIcon className="h-5 w-5 text-primary" />, 
+              industryResearches,
+              "暂无行业研究"
+            )}
+
+            {/* 未分类研究部分（如果有的话） */}
+            {uncategorizedResearches.length > 0 && renderResearchCategorySection(
+              "其他研究", 
+              <ChartLineIcon className="h-5 w-5 text-primary" />, 
+              uncategorizedResearches,
+              "暂无其他研究"
+            )}
+          </>
+        )}
       </div>
     </div>
   );

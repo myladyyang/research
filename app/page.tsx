@@ -2,23 +2,24 @@
 
 import { useRouter } from "next/navigation";
 import { ChatInput } from "@/components/features/ChatInput";
-import { WeatherCard, NewsCard } from "@/components/ui/InfoCard";
 import { Button } from "@/components/ui/Button";
 import { UploadedFile } from "@/types/chat";
 import { useState } from "react";
 import { useSession } from "next-auth/react";
+import { ResearchType } from "@/types/chat";
+
 export default function Home() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
 
-  // 直接调用API创建研究报告
-  const handleQuestionSubmit = async (message: string, files?: UploadedFile[], model?: string, source?: string) => {
+  const handleChatSubmit = async (
+    message: string, 
+    files: UploadedFile[]
+  ) => {
     if (isSubmitting) return;
-    
     setIsSubmitting(true);
-    
 
     if (!isAuthenticated) {
       router.push("/login");
@@ -26,18 +27,86 @@ export default function Home() {
     }
 
     try {
+      const response = await fetch(`/api/chat/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: message,
+          question: message,
+          mode: "CHAT",
+          files: files?.map(f => f.name)
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('创建对话失败');
+      }
+      
+      const { id } = await response.json();
+      router.push(`/chat/${id}`);
+    } catch (error) {
+      console.error("提交问题失败:", error);
+      alert('创建对话失败，请稍后重试');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-      // 调用API创建研究报告
+  const handleResearchSubmit = async (
+    message: string, 
+    files: UploadedFile[],
+    type: ResearchType
+  ) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    if (!isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      // 根据输入内容解析企业或行业信息
+      let researchData: {
+        companyCode?: string;
+        companyName?: string;
+        industry?: string;
+        industryName?: string;
+      } = {};
+
+      switch (type) {
+        case "CORPORATE":
+          // 假设message格式为: "公司名称 (股票代码)"
+          const match = message.match(/^(.+?)\s*(?:\(([^)]+)\))?$/);
+          if (match) {
+            researchData = {
+              companyName: match[1].trim(),
+              companyCode: match[2]?.trim(),
+            };
+          }
+          break;
+        case "INDUSTRY":
+          researchData = {
+            industryName: message,
+          };
+          break;
+        default:
+          break;
+      }
+
       const response = await fetch(`/api/research/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          question: message,
-          model,
-          source,
-          files: files ? files.map(f => f.name) : undefined
+          title: "气候风险" + "<" + message + ">",
+          mode: "RESEARCH",
+          type,
+          files: files?.map(f => f.name),
+          ...researchData
         })
       });
       
@@ -45,9 +114,7 @@ export default function Home() {
         throw new Error('创建研究报告失败');
       }
       
-      // 导航到研究报告页面
-      const {id} = await response.json();
-      console.log("tempId", id);
+      const { id } = await response.json();
       router.push(`/research/${id}`);
     } catch (error) {
       console.error("提交问题失败:", error);
@@ -70,7 +137,8 @@ export default function Home() {
       {/* 搜索输入区域 */}
       <div className="mb-10">
         <ChatInput 
-          onQuestionSubmit={handleQuestionSubmit}
+          onChatSubmit={handleChatSubmit}
+          onResearchSubmit={handleResearchSubmit}
           placeholder="输入您的气候研究主题或问题..."
           className="max-w-2xl mx-auto"
           isLoading={isSubmitting}
@@ -86,45 +154,29 @@ export default function Home() {
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => handleQuestionSubmit("全球气温变化的最新趋势")}
+            onClick={() => handleResearchSubmit("宁德时代 (300750.SZ)", [], "CORPORATE")}
             disabled={isSubmitting}
           >
-            全球气温变化的最新趋势
+            分析宁德时代气候风险
           </Button>
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => handleQuestionSubmit("可再生能源发展报告")}
+            onClick={() => handleResearchSubmit("新能源", [], "INDUSTRY")}
             disabled={isSubmitting}
           >
-            可再生能源发展报告
+            新能源行业分析
           </Button>
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => handleQuestionSubmit("中国碳中和政策分析")}
+            onClick={() => handleChatSubmit("中国碳中和政策分析", [])}
             disabled={isSubmitting}
           >
             中国碳中和政策分析
           </Button>
         </div>
       </div>
-
-      {/* 信息卡片区域 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <WeatherCard
-          location="北京"
-          temperature={24}
-          condition="晴朗"
-          icon="☀️"
-        />
-        <NewsCard
-          source="气候观察"
-          title="最新研究表明全球海洋温度继续上升"
-          date="2023年10月15日"
-        />
-      </div>
-      
     </div>
   );
 }

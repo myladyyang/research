@@ -1,6 +1,6 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 
-import {PrismaClient } from '@prisma/client';
+import {PrismaClient, Prisma } from '@prisma/client';
 
 // 避免在开发环境下创建多个 PrismaClient 实例
 // https://www.prisma.io/docs/guides/development-environment/prevent-prisma-client-hot-reloading
@@ -27,7 +27,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // 从types/chat导入接口
-import { ResearchQuestion,  Research, Source, ResearchResult } from '../types/chat';
+import { ResearchRequest,  Research, Source, ResearchResult } from '../types/chat';
 
 /**
  * 基础的数据库操作包装器 - 仅服务端使用
@@ -45,34 +45,23 @@ export class DbService {
   /**
    * 创建新的研究报告
    */
-  async createResearch(question: ResearchQuestion, userId?: string) {
+  async createResearch(request: ResearchRequest, userId?: string) {
     this.ensureServerSide();
 
     try {
       // 创建事务确保数据一致性
       return prisma.$transaction(async (tx) => {
+        const data: Prisma.ResearchCreateInput = {
+          title: request.title,
+          request: request as any,
+          related: [],
+          files: [],
+          ...(userId ? { user: { connect: { id: userId } } } : {}),
+          type: request.type,
+          mode: request.mode
+        };
 
-        // 1. 创建研究报告，直接保存问题为JSON
-        const research = await tx.research.create({
-          data: {
-            title: question.question,
-            userId: userId, // 添加用户ID
-            // 将问题存储为JSON字段
-            question: {
-              question: question.question,
-              model: question.model,
-              files: question.files?.map(file => ({
-                id: file.id,
-                name: file.name,
-                type: file.type,
-                url: file.url
-              })) || []
-            },
-            // 初始化其他JSON字段
-            related: [],
-            files: [],
-          },
-        });
+        const research = await tx.research.create({ data });
         
         // 2. 创建初始研究结果
         const result = await tx.researchResult.create({
@@ -118,7 +107,14 @@ export class DbService {
       const result: Research = {
         id: research.id,
         title: research.title,
-        question: research.question as any,
+        type: research.type,
+        mode: research.mode,
+        companyCode: research.companyCode || undefined,
+        companyName: research.companyName || undefined,
+        industry: research.industry || undefined,
+        industryName: research.industryName || undefined,
+        industryCategory: research.industryCategory || undefined,
+        request: research.request as any,
         related: research.related as any,
         files: research.files as any,
         results: research.results.map(r => ({
@@ -310,10 +306,17 @@ export class DbService {
         const result: Research = {
           id: research.id,
           title: research.title,
-          question: research.question as any,
+          type: research.type,
+          mode: research.mode,
+          request: research.request as any,
           related: research.related as any,
           files: research.files as any,
           userId: research.userId || undefined,
+          companyCode: research.companyCode || undefined,
+          companyName: research.companyName || undefined,
+          industry: research.industry || undefined,
+          industryName: research.industryName || undefined,
+          industryCategory: research.industryCategory || undefined,
           date: research.createdAt.toISOString(),
           createdAt: research.createdAt.toISOString(),
           updatedAt: research.updatedAt.toISOString()
@@ -370,10 +373,17 @@ export class DbService {
         const result: Research = {
           id: research.id,
           title: research.title,
-          question: research.question as any,
+          type: research.type,
+          mode: research.mode,
+          request: research.request as any,
           related: research.related as any,
           files: research.files as any,
           userId: research.userId || undefined,
+          companyCode: research.companyCode || undefined,
+          companyName: research.companyName || undefined,
+          industry: research.industry || undefined,
+          industryName: research.industryName || undefined,
+          industryCategory: research.industryCategory || undefined,
           date: research.createdAt.toISOString(),
           createdAt: research.createdAt.toISOString(),
           updatedAt: research.updatedAt.toISOString()

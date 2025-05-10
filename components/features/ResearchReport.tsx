@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { FileText, Download, Loader2, Settings, BarChart } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { RelatedContent } from "@/components/features/RelatedContent";
 import { Button } from "@/components/ui/Button";
 import { StatusIndicator } from "@/components/features/StatusIndicator";
@@ -94,7 +93,6 @@ export function ResearchReport({
   related = [],
   data,
   status,
-  breadcrumbs,
   date,
   isLoading = false,
   isContentComplete = false,
@@ -124,13 +122,6 @@ export function ResearchReport({
   }, [status, isContentComplete, isLoading]);
 
 
-  // 生成默认面包屑
-  const defaultBreadcrumbs = [
-    { label: "首页", href: "/" },
-    { label: "研究", href: "/research" },
-    { label: message || "", isCurrent: true },
-  ];
-  const effectiveBreadcrumbs = breadcrumbs || defaultBreadcrumbs;
 
   // 添加滚动跟踪和控制
   const scrollToBottom = useCallback(() => {
@@ -307,48 +298,53 @@ export function ResearchReport({
 
 
   return (
-    <div className="w-full max-w-none sm:max-w-full lg:max-w-6xl mx-auto pt-4 sm:pt-8 pb-16 px-3 sm:px-6 lg:px-8 bg-background">
+    <div className="w-full max-w-none sm:max-w-full lg:max-w-screen-xl mx-auto pt-4 sm:pt-8 pb-16 px-3 sm:px-6 lg:px-8 bg-slate-50/70">
       {/* 添加内联样式 */}
       <style dangerouslySetInnerHTML={{ __html: animationStyles }} />
       
-      {/* 面包屑导航 */}
-      <div className="mb-6 sm:mb-8">
-        <Breadcrumbs items={effectiveBreadcrumbs} />
-      </div>
-
       {/* 标题、时间、来源数 */}
-      <div className="mb-4 sm:mb-6">
-        <h1 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3">
-          <FileText className="w-6 sm:w-9 h-6 sm:h-9 text-primary" />
-          {message}
-        </h1>
-        <div className="flex flex-wrap gap-4 sm:gap-8 text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4">
-          <span>生成时间: {date}</span>
-          <span>来源: {sources.length} 个数据源</span>
-          {isLoading && <span className="text-primary animate-pulse">正在更新...</span>}
-          
+      <div className="mb-6">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between">
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <FileText className="w-6 h-6 text-primary" />
+              {message}
+            </h1>
+            <div className="mt-1 text-sm text-slate-500 flex flex-wrap gap-4">
+              <span>生成时间: {date}</span>
+              <span>来源: {sources.length} 个数据源</span>
+              {isLoading && <span className="text-primary animate-pulse">正在更新...</span>}
+            </div>
+          </div>
+
           {/* 版本选择器 */}
           {versions.length > 1 && (
-            <div className="flex items-center gap-2">
-              <span>版本:</span>
-              <select 
-                className="bg-background border border-input rounded px-2 py-1"
-                value={currentVersion}
-                onChange={(e) => onVersionChange && onVersionChange(Number(e.target.value))}
-              >
-                {versions.sort().map(version => (
-                  <option key={version} value={version}>V{version}</option>
-                ))}
-              </select>
+            <div className="md:ml-4 mt-4 md:mt-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600">版本:</span>
+                <select 
+                  className="text-sm border border-slate-200 rounded-md px-2 py-1.5 bg-white"
+                  value={currentVersion}
+                  onChange={(e) => onVersionChange && onVersionChange(Number(e.target.value))}
+                >
+                  {versions.sort().map(version => (
+                    <option key={version} value={version}>V{version}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border mb-8">
+      <div className="flex border-b border-slate-200 mb-6">
         <button
-          className={`px-6 py-3 text-base font-medium border-b-2 transition-colors relative ${tab === "report" ? "text-primary border-primary" : "text-muted-foreground border-transparent hover:text-primary"}`}
+          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors relative ${
+            tab === "report" 
+              ? "text-primary border-primary" 
+              : "text-slate-600 border-transparent hover:text-primary hover:border-primary/50"
+          }`}
           onClick={() => setTab("report")}
         >
           报告
@@ -357,14 +353,22 @@ export function ResearchReport({
           )}
         </button>
         <button
-          className={`px-6 py-3 text-base font-medium border-b-2 transition-colors ${tab === "data" ? "text-primary border-primary" : "text-muted-foreground border-transparent hover:text-primary"}`}
+          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            tab === "data" 
+              ? "text-primary border-primary" 
+              : "text-slate-600 border-transparent hover:text-primary hover:border-primary/50"
+          }`}
           onClick={() => setTab("data")}
         >
           数据
           <BarChart className="h-4 w-4 ml-2 inline-block text-current" />
         </button>
         <button
-          className={`px-6 py-3 text-base font-medium border-b-2 transition-colors ${tab === "source" ? "text-primary border-primary" : "text-muted-foreground border-transparent hover:text-primary"}`}
+          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            tab === "source" 
+              ? "text-primary border-primary" 
+              : "text-slate-600 border-transparent hover:text-primary hover:border-primary/50"
+          }`}
           onClick={() => setTab("source")}
         >
           来源
@@ -376,25 +380,41 @@ export function ResearchReport({
         </button>
       </div>
 
-      {/* Tab内容 - 添加内容容器最小高度 */}
+      {/* Tab内容区域 */}
       <div className="min-h-[500px]">
-        {tab === "report" && renderContent()}
+        {tab === "report" && (
+          <div className="card border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
+              <h3 className="font-medium text-slate-800 flex items-center gap-1.5">
+                <FileText className="h-4 w-4 text-primary" />
+                研究报告内容
+              </h3>
+            </div>
+            <div className="p-6 bg-white">
+              {renderContent()}
+            </div>
+          </div>
+        )}
         
         {tab === "data" && (
-          <div className="content-container mb-12">
-            <div className="markdown-body animate-in fade-in-50 duration-500">
+          <div className="card border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
+              <h3 className="font-medium text-slate-800 flex items-center gap-1.5">
+                <BarChart className="h-4 w-4 text-primary" />
+                数据分析
+              </h3>
+            </div>
+            <div className="p-6 bg-white">
               {data ? (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {JSON.stringify(data)}
                 </ReactMarkdown>
               ) : (
                 <div className="py-10 text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/5 mb-4">
-                    <BarChart className="h-8 w-8 text-primary/60" />
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
+                    <BarChart className="h-8 w-8 text-slate-400" />
                   </div>
-                  <p className="text-lg text-muted-foreground">正在整理数据分析...</p>
+                  <p className="text-base text-slate-600">正在整理数据分析...</p>
                 </div>
               )}
             </div>
@@ -402,49 +422,55 @@ export function ResearchReport({
         )}
         
         {tab === "source" && (
-          <div className="content-container mb-12">
-            <h2 className="text-2xl font-semibold mb-6">参考来源</h2>
-            <ul className="space-y-3">
-              {sources.map((source, index) => (
-                <li key={source.id} className="animate-in fade-in-50 duration-300" style={{ animationDelay: `${index * 100}ms` }}>
-                  <a
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-base hover:underline text-primary flex items-center group"
-                  >
-                    <span className="w-7 h-7 flex items-center justify-center rounded-full bg-primary/10 text-primary mr-3 text-xs font-semibold group-hover:bg-primary group-hover:text-white transition-colors">
-                      {index + 1}
-                    </span>
-                    {source.title} - <span className="ml-1 text-muted-foreground">{source.source}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-            {sources.length === 0 && <p className="text-muted-foreground">暂无参考来源</p>}
-            <div className="content-placeholder"></div>
+          <div className="card border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
+              <h3 className="font-medium text-slate-800 flex items-center gap-1.5">
+                <FileText className="h-4 w-4 text-primary" />
+                参考来源
+              </h3>
+            </div>
+            <div className="p-6 bg-white">
+              <ul className="space-y-3">
+                {sources.map((source, index) => (
+                  <li key={source.id} className="animate-in fade-in-50 duration-300" style={{ animationDelay: `${index * 100}ms` }}>
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm hover:underline text-primary flex items-center group"
+                    >
+                      <span className="w-6 h-6 flex items-center justify-center rounded-full bg-primary/10 text-primary mr-3 text-xs font-semibold group-hover:bg-primary group-hover:text-white transition-colors">
+                        {index + 1}
+                      </span>
+                      {source.title} - <span className="ml-1 text-slate-500">{source.source}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              {sources.length === 0 && <p className="text-slate-500">暂无参考来源</p>}
+            </div>
           </div>
         )}
       </div>
 
-      {/* 操作按钮 - 仅在内容生成完成后显示 */}
+      {/* 操作按钮 */}
       {isContentComplete && (
-        <div className="flex flex-wrap gap-4 lg:gap-6 mb-12" style={{ animationDelay: '0s' }}>
+        <div className="flex flex-wrap gap-4 mt-6">
           <Button 
             variant="outline" 
-            size="md" 
+            size="sm"
             onClick={onExport} 
-            leftIcon={<Download className="w-5 h-5" />}
-            className="px-4 lg:px-5 py-2.5 border-2"
+            leftIcon={<Download className="w-4 h-4" />}
+            className="text-sm border border-slate-200 hover:bg-slate-50"
           >
             导出报告
           </Button>
         </div>
       )}
 
-      {/* 相关研究 - 不再受isContentComplete条件限制 */}
+      {/* 相关研究 */}
       {related && related.length > 0 && (
-        <div className="mb-16" style={{ animationDelay: '0s' }}>
+        <div className="mt-8">
           <RelatedContent items={related} />
         </div>
       )}

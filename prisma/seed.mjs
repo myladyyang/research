@@ -26,15 +26,16 @@ async function main() {
     data: {
       title: "气候变化对农业产量的影响",
       userId: testUser.id,
-      // 使用JSON字段存储问题
-      question: {
+      type: "INDUSTRY",
+      mode: "RESEARCH",
+      request: {
+        title: "气候变化对农业产量的影响",
         question: "气候变化如何影响全球农业产量?",
-        model: "expert",
-        files: [],
-        id: "q1",
-        createdAt: new Date().toISOString()
+        mode: "RESEARCH",
+        type: "INDUSTRY",
+        industryName: "农业",
+        files: []
       },
-      // 使用JSON字段存储相关研究
       related: [
         {
           id: "r1",
@@ -51,7 +52,6 @@ async function main() {
           description: "概述近年来抗旱作物品种培育的最新研究成果"
         }
       ],
-      // 使用JSON字段存储文件
       files: []
     }
   });
@@ -65,7 +65,6 @@ async function main() {
       status: "complete",
       isComplete: true,
       researchId: completedResearch.id,
-      // 使用JSON字段存储数据可视化内容
       data: {
         charts: [
           {
@@ -94,7 +93,6 @@ async function main() {
           }
         ]
       },
-      // 使用JSON字段存储来源
       sources: [
         {
           id: "s1",
@@ -121,98 +119,54 @@ async function main() {
     }
   });
 
-  // 为研究创建第二个结果（对应跟进问题）
-  await prisma.researchResult.create({
+  // 创建一个企业研究报告
+  const corporateResearch = await prisma.research.create({
     data: {
-      version: 2, // 版本递增
-      markdownContent: "## 气候变化对农业产量的影响（区域差异详解）\n\n气候变化对全球农业系统造成了深远影响，但不同区域受影响程度各异...",
-      summary: "最新研究显示气候变化影响在区域上存在显著差异...",
-      status: "complete",
-      isComplete: true,
-      researchId: completedResearch.id,
-      // 使用JSON字段存储数据可视化内容
-      data: {
-        charts: [
-          {
-            type: "bar",
-            title: "区域农业影响对比图",
-            data: {
-              labels: ["亚洲", "非洲", "欧洲", "北美", "南美", "大洋洲"],
-              datasets: [
-                {
-                  label: "气候变化影响程度 (%)",
-                  data: [-12, -15, -4, -6, -10, -8]
-                }
-              ]
-            }
-          }
-        ]
-      },
-      // 使用JSON字段存储来源
-      sources: [
-        {
-          id: "s4",
-          sourceId: "4",
-          title: "区域气候模型与农业生产关系研究",
-          url: "https://example.com/regional-climate-models",
-          source: "区域气候研究中心"
-        },
-        {
-          id: "s5",
-          sourceId: "5",
-          title: "气候变化对亚洲水稻产量的影响",
-          url: "https://example.com/asia-rice-production",
-          source: "亚洲农业科学期刊"
-        }
-      ]
-    }
-  });
-  
-  // 创建一个未完成的研究报告
-  const incompleteResearch = await prisma.research.create({
-    data: {
-      title: "海平面上升对沿海城市的威胁",
+      title: "宁德时代气候风险分析",
       userId: testUser.id,
-      // 使用JSON字段存储问题
-      question: {
-        question: "海平面上升将如何影响全球主要沿海城市?",
-        model: "research",
-        files: [],
-        id: "q2",
-        createdAt: new Date().toISOString()
+      type: "CORPORATE",
+      mode: "RESEARCH",
+      request: {
+        title: "宁德时代气候风险分析",
+        question: "宁德时代面临哪些气候风险?",
+        mode: "RESEARCH",
+        type: "CORPORATE",
+        companyName: "宁德时代",
+        companyCode: "300750.SZ",
+        industry: "新能源",
+        files: []
       },
-      // 使用JSON字段存储相关研究，空数组
+      companyName: "宁德时代",
+      companyCode: "300750.SZ",
+      industry: "新能源",
       related: [],
-      // 使用JSON字段存储文件，空数组
       files: []
     }
   });
-  
+
   // 为未完成研究添加进行中的结果
   await prisma.researchResult.create({
     data: {
       version: 1,
-      markdownContent: "## 海平面上升对沿海城市的威胁\n\n全球变暖导致的海平面上升正在成为沿海城市面临的重大挑战。\n\n### 当前趋势\n\n根据最新研究，全球平均海平面正以每年3.6毫米的速度上升，这一速率还在加快。",
+      markdownContent: "## 宁德时代气候风险分析\n\n宁德时代作为全球领先的动力电池制造商，面临着多重气候风险挑战。\n\n### 主要风险\n\n1. 极端天气对供应链的影响\n2. 气候变化对原材料获取的影响\n3. 能源转型带来的机遇与挑战",
       status: "正在分析数据...",
       isComplete: false,
-      researchId: incompleteResearch.id,
-      // 使用JSON字段存储数据可视化内容，空对象
+      researchId: corporateResearch.id,
       data: {},
-      // 使用JSON字段存储来源
       sources: [
         {
           id: "s6",
           sourceId: "6",
-          title: "全球海平面上升趋势报告",
-          url: "https://example.com/sea-level-1",
-          source: "气候变化研究所"
+          title: "宁德时代2023年ESG报告",
+          url: "https://example.com/catl-esg-2023",
+          source: "宁德时代官网"
         }
       ]
     }
   });
 
-  console.log(`创建完成的研究报告: ${completedResearch.id}`);
-  console.log(`创建未完成的研究报告: ${incompleteResearch.id}`);
+  console.log(`创建行业研究报告: ${completedResearch.id}`);
+  console.log(`创建企业研究报告: ${corporateResearch.id}`);
   console.log('数据库种子数据已成功添加');
 }
 

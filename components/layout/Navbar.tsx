@@ -1,51 +1,30 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { ThemeSwitcher } from "@/components/layout/ThemeSwitcher";
 import { useSession, signOut } from "next-auth/react";
 import {
   NavigationMenu,
-  NavigationMenuContent,
   NavigationMenuItem,
-  NavigationMenuLink,
   NavigationMenuList,
-  NavigationMenuTrigger,
-  navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
-import { LayoutDashboardIcon, BellIcon, SettingsIcon, LogOutIcon, LogInIcon, UserPlusIcon } from "lucide-react";
-import { Research } from "@/types/chat";
+import { 
+  LayoutDashboardIcon, 
+  BellIcon, 
+  SettingsIcon, 
+  LogOutIcon, 
+  LogInIcon, 
+  UserPlusIcon, 
+  Building2Icon,
+  FactoryIcon,
+  HomeIcon
+} from "lucide-react";
 
 export function Navbar() {
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated";
-
-  const [myResearch, setMyResearch] = useState<Research[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const getMyResearch = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/research/user");
-      if (!response.ok) {
-        throw new Error('获取研究列表失败');
-      }
-      const data = await response.json();
-      return Array.isArray(data) ? data : [];
-    } catch (error) {
-      console.error('获取研究列表失败:', error);
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      getMyResearch().then(setMyResearch);
-    }
-  }, [isAuthenticated]);
 
   return (
     <div className="flex items-center h-full w-full ">
@@ -58,48 +37,45 @@ export function Navbar() {
       
       {/* 中间 - 研究和业务导航 */}
       <div className="flex-1 flex justify-center">
-        <NavigationMenu className="md:flex">
+        <NavigationMenu className="md:flex" viewport={false}>
           <NavigationMenuList>
             <NavigationMenuItem>
-              <Link href="/" passHref>
-                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
+              <Link href="/" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
+                <span className="flex items-center gap-2">
+                  <HomeIcon size={16} />
                   <span>首页</span>
-                </NavigationMenuLink>
+                </span>
               </Link>
             </NavigationMenuItem>
+            
+            {/* 上市公司气候风险分析 */}
+            <NavigationMenuItem>
+              <Link href="/corporate" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
+                <span className="flex items-center gap-2">
+                  <Building2Icon size={16} />
+                  <span>上市公司气候风险</span>
+                </span>
+              </Link>
+            </NavigationMenuItem>
+
+            {/* 行业气候风险分析 */}
+            <NavigationMenuItem>
+              <Link href="/industry" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
+                <span className="flex items-center gap-2">
+                  <FactoryIcon size={16} />
+                  <span>行业气候风险</span>
+                </span>
+              </Link>
+            </NavigationMenuItem>
+
                 
             <NavigationMenuItem>
-              <NavigationMenuTrigger>
+              <Link href="/dashboard" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
                 <span className="flex items-center gap-2">
                   <LayoutDashboardIcon size={16} />
                   <span>我的空间</span>
                 </span>
-              </NavigationMenuTrigger>
-              <NavigationMenuContent>
-                <div className="p-4 w-[280px]">
-                  {isLoading ? (
-                    <div className="text-center py-4 text-sm text-muted-foreground">
-                      加载中...
-                    </div>
-                  ) : myResearch.length > 0 ? (
-                    myResearch.map((research) => (
-                      <Link 
-                        href={`/research/${research.id}`} 
-                        key={research.id} 
-                        className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
-                      >
-                        <div className="text-sm font-medium leading-none">
-                          {research.title || '未命名研究'}
-                        </div>
-                      </Link>
-                    ))
-                  ) : (
-                    <div className="text-center py-4 text-sm text-muted-foreground">
-                      暂无研究报告
-                    </div>
-                  )}
-                </div>
-              </NavigationMenuContent>
+              </Link>
             </NavigationMenuItem>
           </NavigationMenuList>
         </NavigationMenu>

@@ -1,10 +1,10 @@
 import { Queue } from 'bullmq';
 import { QUEUE_NAMES, DEFAULT_QUEUE_OPTIONS } from './config';
-import { ResearchQuestion } from '@/types/chat';
+import { ResearchRequest } from '@/types/chat';
 
 export interface ResearchJobData {
   researchId: string;
-  question: ResearchQuestion;
+  request: ResearchRequest;
   userId: string;
   resultId: string;
 }

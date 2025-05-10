@@ -3,9 +3,9 @@ import { ReactNode } from "react";
 export interface UploadedFile {
   id: string;
   name: string;
+  size: string;
   type: string;
   url: string;
-  size?: string;
 }
 
 export interface SourceOption {
@@ -20,25 +20,10 @@ export interface ModelOption {
   description?: string;
 }
 
-export const sourceOptions: SourceOption[] = [
-  { id: "literature", name: "文献", icon: null }, // 图标将在导入时设置
-  { id: "web", name: "网页", icon: null },
-  { id: "database", name: "数据库", icon: null },
-  { id: "all", name: "全部来源", icon: null },
-];
+export type ResearchType = "CORPORATE" | "INDUSTRY";
+export type ChatMode = "CHAT" | "RESEARCH";
 
-export const modelOptions: ModelOption[] = [
-  { id: "default", name: "默认模型", description: "综合能力最强的模型" },
-  { id: "expert", name: "专家模型", description: "气候领域专业知识更丰富" },
-  { id: "research", name: "研究模型", description: "学术研究文献分析能力强" },
-];
 
-export interface ChatInputProps {
-  onQuestionSubmit?: (message: string, files?: UploadedFile[], model?: string, source?: string) => void;
-  isLoading?: boolean;
-  placeholder?: string;
-  className?: string;
-}
 
 export interface FloatingInputProps {
   onSend: (message: string, files?: UploadedFile[], model?: string, source?: string) => void;
@@ -107,15 +92,42 @@ export interface ResearchReportProps {
   onSave?: () => void;
 }
 
-// 用于存储在question JSON字段中的类型
-export interface ResearchQuestion {
-  question: string;
+
+
+// 聊天模式的问题
+export interface ChatRequest  {
+  message: string;
   files?: UploadedFile[];
-  model?: string;
   version?: number;
-  id?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  mode: "CHAT";
+}
+
+// 研究模式的问题
+export interface ResearchRequest {
+  title: string;
+  files?: UploadedFile[];
+  version?: number;
+  mode: "RESEARCH";
+  type: "CORPORATE" | "INDUSTRY";
+  companyCode?: string;
+  companyName?: string;
+  industry?: string;
+  industryName?: string;
+  [key: string]: unknown; // 添加字符串索引签名
+}
+
+// 统一的问题类型
+export type Request = ChatRequest | ResearchRequest;
+
+// 用于存储在数据库中的问题记录
+export interface RequestRecord {
+  id: string;
+  request: Request;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  resultId?: string;
 }
 
 // 研究结果接口 - 对应ResearchResult模型
@@ -137,7 +149,9 @@ export interface ResearchResult {
 export type Research = {
   id: string;
   title: string;
-  question?: ResearchQuestion | Record<string, unknown>; // 修改为具体类型或Record类型
+  type?: "CORPORATE" | "INDUSTRY"; // 添加研究类型字段
+  mode?: "CHAT" | "RESEARCH"; // 添加研究模式字段
+  request?: ResearchRequest | Record<string, unknown>; // 修改为具体类型或Record类型
   related?: RelatedItem[]; // 修改为具体类型数组
   files?: UploadedFile[]; // 修改为具体类型数组
   results?: ResearchResult[]; // 关联的研究结果
@@ -146,5 +160,12 @@ export type Research = {
   date?: string; // 非数据库字段，格式化的日期
   createdAt: string;
   updatedAt: string;
+  // 如果是企业研究，存储相关企业信息
+  companyCode?: string; // 股票代码
+  companyName?: string; // 公司名称
+  industry?: string; // 所属行业
+  // 如果是行业研究，存储行业信息
+  industryName?: string; // 行业名称
+  industryCategory?: string; // 行业分类
 };
 

@@ -11,6 +11,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// 研究类型枚举
+enum ResearchType {
+  CORPORATE // 上市公司研究
+  INDUSTRY  // 行业研究
+}
+
+// 研究模式枚举
+enum ChatMode {
+  CHAT     // 对话模式
+  RESEARCH // 研究模式
+}
+
 // 用户模型
 model User {
   id            String    @id @default(cuid())
@@ -74,13 +86,24 @@ model VerificationToken {
 
 // 研究报告模型 - 简化后的主要模型
 model Research {
-  id         String   @id @default(cuid())
-  title      String   // 研究的标题
-  question   Json?    // 存储问题的JSON数据
-  related    Json?    // 存储相关研究的JSON数据
-  files      Json?    // 存储文件信息的JSON数据
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id         String       @id @default(cuid())
+  title      String      // 研究的标题
+  type       ResearchType // 研究类型：企业/行业
+  mode       ChatMode     // 研究模式：对话/研究
+  request   Json?       // 存储问题的JSON数据
+  related    Json?       // 存储相关研究的JSON数据
+  files      Json?       // 存储文件信息的JSON数据
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  // 如果是企业研究，存储相关企业信息
+  companyCode String?    // 股票代码
+  companyName String?    // 公司名称
+  industry    String?    // 所属行业
+
+  // 如果是行业研究，存储行业信息
+  industryName     String?    // 行业名称
+  industryCategory String?    // 行业分类
 
   // 关联
   userId  String?

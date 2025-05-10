@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Research, ResearchQuestion, ResearchResult, Source, RelatedItem } from "@/types/chat";
+import { Research, ResearchRequest, ResearchResult, Source, RelatedItem } from "@/types/chat";
 
 
 // 从研究服务移植过来的类型定义
@@ -47,8 +47,8 @@ export function useResearchManager() {
         id: "",
         version: 1,
         createdAt: new Date().toISOString(),
-        questionId: prevReport.question && typeof prevReport.question === 'object' && 'id' in prevReport.question ? 
-          (prevReport.question.id as string) || "" : "",
+        questionId: prevReport.request && typeof prevReport.request === 'object' && 'id' in prevReport.request ? 
+          (prevReport.request.id as string) || "" : "",
         researchId: prevReport.id,
         isComplete: false,
         progress: 0
@@ -581,28 +581,7 @@ export function useResearchManager() {
       isEmpty: !(report?.related?.length)
     },
     
-    // 问题提交
-    question: {
-      submit: async (question: ResearchQuestion) => {
-        try {
-          // 调用addQuestion并直接返回它，保持Promise特性
-          const reportId = await addQuestion(question);
-          return reportId;
-        } catch (error) {
-          console.error("提交问题失败:", error);
-          throw error; // 重新抛出异常以便调用者处理
-        }
-      },
-      // 获取当前问题
-      getCurrent: () => {
-        if (report?.question && typeof report.question === 'object') {
-          return report.question as ResearchQuestion;
-        }
-        return null;
-      },
-      // 获取所有问题
-      getAll: () => [] // 修改为空数组，现在使用单一问题模型
-    },
+
     
     // 结果相关方法
     results: {
