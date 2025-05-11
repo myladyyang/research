@@ -7,9 +7,6 @@ import {
   Mic, 
   Bot, 
   Search, 
-  Book, 
-  Globe, 
-  Database, 
   FileText,
   X,
   Loader2
@@ -17,23 +14,11 @@ import {
 import { 
   FloatingInputProps,
   UploadedFile,
-  SourceOption,
-  sourceOptions,
-  modelOptions
 } from "@/types/chat";
 
-// 设置图标
-const sourceOptionsWithIcons: SourceOption[] = [
-  { ...sourceOptions[0], icon: <Book className="w-4 h-4" /> },
-  { ...sourceOptions[1], icon: <Globe className="w-4 h-4" /> },
-  { ...sourceOptions[2], icon: <Database className="w-4 h-4" /> },
-  { ...sourceOptions[3], icon: <Search className="w-4 h-4" /> },
-];
 
 export function FloatingInput({ 
   onSend, 
-  models = modelOptions, 
-  sources = sourceOptionsWithIcons,
   isLoading = false,
   placeholder = "输入后续问题...",
   className = "",
@@ -44,8 +29,6 @@ export function FloatingInput({
   const [showFilePreview, setShowFilePreview] = useState(false);
   const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("default");
-  const [selectedSource, setSelectedSource] = useState("all");
   const [menuState, setMenuState] = useState<{
     model: boolean;
     source: boolean;
@@ -72,7 +55,7 @@ export function FloatingInput({
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (message.trim() && !isLoading) {
-      onSend(message, uploadedFiles, selectedModel, selectedSource);
+      onSend(message, uploadedFiles);
       setMessage("");
       // 不清除文件，让用户可以基于同一组文件继续提问
     }
@@ -245,33 +228,6 @@ export function FloatingInput({
                 <Bot className="w-4 h-4" />
               </button>
               
-              {menuState.model && (
-                <div className="chat-dropdown-menu w-56 right-0">
-                  <div className="p-2 border-b">
-                    <h3 className="text-xs font-medium">选择AI模型</h3>
-                  </div>
-                  <div className="p-1">
-                    {models.map(model => (
-                      <button
-                        key={model.id}
-                        type="button"
-                        className={`chat-dropdown-item ${
-                          selectedModel === model.id ? 'chat-dropdown-item-selected' : ''
-                        }`}
-                        onClick={() => {
-                          setSelectedModel(model.id);
-                          setMenuState(prev => ({ ...prev, model: false }));
-                        }}
-                      >
-                        <div>{model.name}</div>
-                        {model.description && (
-                          <div className="text-xs text-muted-foreground mt-0.5">{model.description}</div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
             
             {/* 选择知识来源按钮 */}
@@ -293,31 +249,7 @@ export function FloatingInput({
                 <Search className="w-4 h-4" />
               </button>
               
-              {menuState.source && (
-                <div className="chat-dropdown-menu w-40 right-0">
-                  <div className="p-2 border-b">
-                    <h3 className="text-xs font-medium">选择知识来源</h3>
-                  </div>
-                  <div className="p-1">
-                    {sources.map(source => (
-                      <button
-                        key={source.id}
-                        type="button"
-                        className={`chat-dropdown-item flex items-center gap-2 ${
-                          selectedSource === source.id ? 'chat-dropdown-item-selected' : ''
-                        }`}
-                        onClick={() => {
-                          setSelectedSource(source.id);
-                          setMenuState(prev => ({ ...prev, source: false }));
-                        }}
-                      >
-                        <span>{source.icon}</span>
-                        <span>{source.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+
             </div>
             
             {/* 文件上传按钮 */}
@@ -381,11 +313,11 @@ export function FloatingInput({
           <div className="flex items-center gap-1">
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-secondary text-xs">
               <Bot className="w-3 h-3" />
-              <span>{models.find(m => m.id === selectedModel)?.name || "默认模型"}</span>
+              <span>默认模型</span>
             </span>
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-secondary text-xs">
-              {sources.find(s => s.id === selectedSource)?.icon}
-              <span>{sources.find(s => s.id === selectedSource)?.name}</span>
+              <Search className="w-3 h-3" />
+              <span>默认来源</span>
             </span>
           </div>
         </div>
