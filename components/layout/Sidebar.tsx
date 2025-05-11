@@ -18,8 +18,6 @@ import {
   HomeIcon, 
   FolderIcon, 
   Loader2Icon,
-  Building2Icon,
-  FactoryIcon,
 } from "lucide-react";
 import { Research } from "@/types/chat";
 
@@ -36,18 +34,6 @@ const sidebarItems: SidebarItem[] = [
     label: "首页",
     icon: HomeIcon,
     href: "/",
-  },
-  {
-    id: "corporate",
-    label: "上市公司气候风险",
-    icon: Building2Icon,
-    href: "/corporate/overview",
-  },
-  {
-    id: "industry",
-    label: "行业气候风险",
-    icon: FactoryIcon,
-    href: "/industry/overview",
   },
   {
     id: "myspace",
@@ -88,9 +74,9 @@ export const Sidebar = memo(function Sidebar() {
     }
   }, [isAuthenticated, getRecentResearch]);
 
-  // 初始化时设置侧边栏为显示状态
+  // 初始化时设置侧边栏为隐藏状态
   useEffect(() => {
-    setOpen(true);
+    setOpen(false);
   }, [setOpen]);
 
   if (!isAuthenticated) {

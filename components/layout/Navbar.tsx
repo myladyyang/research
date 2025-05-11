@@ -17,8 +17,6 @@ import {
   LogOutIcon, 
   LogInIcon, 
   UserPlusIcon, 
-  Building2Icon,
-  FactoryIcon,
   HomeIcon
 } from "lucide-react";
 
@@ -48,29 +46,11 @@ export function Navbar() {
               </Link>
             </NavigationMenuItem>
             
-            {/* 上市公司气候风险分析 */}
-            <NavigationMenuItem>
-              <Link href="/corporate" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
-                <span className="flex items-center gap-2">
-                  <Building2Icon size={16} />
-                  <span>上市公司气候风险</span>
-                </span>
-              </Link>
-            </NavigationMenuItem>
 
-            {/* 行业气候风险分析 */}
-            <NavigationMenuItem>
-              <Link href="/industry" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
-                <span className="flex items-center gap-2">
-                  <FactoryIcon size={16} />
-                  <span>行业气候风险</span>
-                </span>
-              </Link>
-            </NavigationMenuItem>
 
                 
             <NavigationMenuItem>
-              <Link href="/dashboard" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
+              <Link href="/myspace" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
                 <span className="flex items-center gap-2">
                   <LayoutDashboardIcon size={16} />
                   <span>我的空间</span>

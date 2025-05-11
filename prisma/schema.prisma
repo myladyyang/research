@@ -120,7 +120,8 @@ model ResearchResult {
   markdownContent String?   @db.Text
   summary         String?   @db.Text
   data            Json?     // 本次结果存储数据可视化内容的JSON数据
-  sources         Json?    // 本次结果存储来源的JSON数据
+  sources         Json?     // 本次结果存储来源的JSON数据
+  tasks           Json?     // 存储工作流任务节点的JSON数据
   status          String?   // 研究的当前状态
   isComplete      Boolean   @default(false)
   createdAt       DateTime  @default(now())

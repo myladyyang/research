@@ -27,7 +27,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // 从types/chat导入接口
-import { ResearchRequest,  Research, Source, ResearchResult } from '../types/chat';
+import { ResearchRequest,  Research, Source, ResearchResult, Task } from '../types/chat';
 
 /**
  * 基础的数据库操作包装器 - 仅服务端使用
@@ -126,6 +126,7 @@ export class DbService {
           status: r.status || undefined,
           data: r.data as any,
           sources: r.sources as any,
+          tasks: r.tasks as any,
           createdAt: r.createdAt.toISOString(),
           updatedAt: r.updatedAt.toISOString(),
           researchId: r.researchId
@@ -145,6 +146,7 @@ export class DbService {
               status: latest.status || undefined,
               data: latest.data as any,
               sources: latest.sources as any,
+              tasks: latest.tasks as any,
               createdAt: latest.createdAt.toISOString(),
               updatedAt: latest.updatedAt.toISOString(),
               researchId: latest.researchId
@@ -187,6 +189,7 @@ export class DbService {
         status: result.status || undefined,
         data: result.data as any,
         sources: result.sources as any,
+        tasks: result.tasks as any,
         createdAt: result.createdAt.toISOString(),
         updatedAt: result.updatedAt.toISOString(),
         researchId: result.researchId
@@ -207,6 +210,7 @@ export class DbService {
     sources?: Source[];
     status?: string;
     isComplete?: boolean;
+    tasks?: Task[];
   }) {
     this.ensureServerSide();
     
@@ -242,6 +246,27 @@ export class DbService {
           title: source.title,
           url: source.url,
           source: source.source
+        }));
+      }
+      
+      if (data.tasks) {
+        // 转换Task[]为简单对象数组
+        prismaData.tasks = data.tasks.map(task => ({
+          id: task.id,
+          nodeId: task.nodeId,
+          nodeType: task.nodeType,
+          title: task.title,
+          status: task.status,
+          index: task.index,
+          inputs: task.inputs,
+          outputs: task.outputs,
+          elapsedTime: task.elapsedTime,
+          totalTokens: task.totalTokens,
+          error: task.error,
+          createdAt: task.createdAt,
+          finishedAt: task.finishedAt,
+          workflowRunId: task.workflowRunId,
+          predecessorNodeId: task.predecessorNodeId
         }));
       }
       
@@ -334,6 +359,7 @@ export class DbService {
             status: lastResult.status || undefined,
             data: lastResult.data as any,
             sources: lastResult.sources as any,
+            tasks: lastResult.tasks as any,
             createdAt: lastResult.createdAt.toISOString(),
             updatedAt: lastResult.updatedAt.toISOString(),
             researchId: lastResult.researchId
@@ -401,6 +427,7 @@ export class DbService {
             status: lastResult.status || undefined,
             data: lastResult.data as any,
             sources: lastResult.sources as any,
+            tasks: lastResult.tasks as any,
             createdAt: lastResult.createdAt.toISOString(),
             updatedAt: lastResult.updatedAt.toISOString(),
             researchId: lastResult.researchId
@@ -432,6 +459,7 @@ export class DbService {
       researchId,
       data: {},
       sources: [],
+      tasks: [],
       createdAt: new Date().toISOString()
     };
     

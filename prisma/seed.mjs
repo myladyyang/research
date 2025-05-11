@@ -21,19 +21,22 @@ async function main() {
   
   console.log(`创建测试用户: ${testUser.id}`);
   
-  // 创建一个已完成的研究报告
+  // 创建一个已完成的行业研究报告
   const completedResearch = await prisma.research.create({
     data: {
       title: "气候变化对农业产量的影响",
       userId: testUser.id,
       type: "INDUSTRY",
       mode: "RESEARCH",
+      industryName: "农业",
+      industryCategory: "第一产业",
       request: {
         title: "气候变化对农业产量的影响",
         question: "气候变化如何影响全球农业产量?",
         mode: "RESEARCH",
         type: "INDUSTRY",
         industryName: "农业",
+        industryCategory: "第一产业",
         files: []
       },
       related: [
@@ -115,6 +118,20 @@ async function main() {
           url: "https://example.com/climate-agriculture-3",
           source: "联合国粮农组织"
         }
+      ],
+      tasks: [
+        {
+          id: "t1",
+          name: "数据收集",
+          status: "completed",
+          description: "收集全球农业产量历史数据"
+        },
+        {
+          id: "t2",
+          name: "模型分析",
+          status: "completed",
+          description: "分析气候变量与产量的相关性"
+        }
       ]
     }
   });
@@ -126,6 +143,9 @@ async function main() {
       userId: testUser.id,
       type: "CORPORATE",
       mode: "RESEARCH",
+      companyName: "宁德时代",
+      companyCode: "300750.SZ",
+      industry: "新能源",
       request: {
         title: "宁德时代气候风险分析",
         question: "宁德时代面临哪些气候风险?",
@@ -136,9 +156,6 @@ async function main() {
         industry: "新能源",
         files: []
       },
-      companyName: "宁德时代",
-      companyCode: "300750.SZ",
-      industry: "新能源",
       related: [],
       files: []
     }
@@ -160,6 +177,14 @@ async function main() {
           title: "宁德时代2023年ESG报告",
           url: "https://example.com/catl-esg-2023",
           source: "宁德时代官网"
+        }
+      ],
+      tasks: [
+        {
+          id: "t1",
+          name: "数据收集",
+          status: "in_progress",
+          description: "收集宁德时代气候相关披露信息"
         }
       ]
     }

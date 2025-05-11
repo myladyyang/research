@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { FileText, Download, Loader2, Settings, BarChart } from "lucide-react";
+import { FileText, Download, Loader2, Settings, BarChart, ListChecks } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { RelatedContent } from "@/components/features/RelatedContent";
@@ -7,9 +7,16 @@ import { Button } from "@/components/ui/Button";
 import { StatusIndicator } from "@/components/features/StatusIndicator";
 import Image from "next/image";
 import { 
-  ResearchReportProps
+  ResearchReportProps,
+  Task
 } from "@/types/chat";
 import "@/app/githubcss.css"; // 引入GitHub Markdown CSS
+
+// 扩展Task类型以兼容不同的格式
+interface ExtendedTask extends Task {
+  name?: string;
+  description?: string;
+}
 
 // 仅保留动画相关的CSS
 const animationStyles = `
@@ -100,6 +107,7 @@ export function ResearchReport({
   versions = [],
   currentVersion,
   onVersionChange,
+  tasks = [],
 }: ResearchReportProps) {
   // 内容节点的前一个状态，用于对比新内容
   const previousContentRef = useRef<string>("");
@@ -110,7 +118,7 @@ export function ResearchReport({
   // 内容容器ref
   const contentContainerRef = useRef<HTMLDivElement>(null);
   // 当前激活的标签页
-  const [tab, setTab] = useState<"report" | "data" | "source">("report");
+  const [tab, setTab] = useState<"report" | "data" | "source" | "tasks">("report");
   // 状态指示器控制
   const [currentStatus, setCurrentStatus] = useState(status || "初始化研究...");
 
@@ -365,6 +373,22 @@ export function ResearchReport({
         </button>
         <button
           className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            tab === "tasks" 
+              ? "text-primary border-primary" 
+              : "text-slate-600 border-transparent hover:text-primary hover:border-primary/50"
+          }`}
+          onClick={() => setTab("tasks")}
+        >
+          任务
+          <ListChecks className="h-4 w-4 ml-2 inline-block text-current" />
+          {tasks.length > 0 && (
+            <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-primary/10 text-primary font-medium">
+              {tasks.length}
+            </span>
+          )}
+        </button>
+        <button
+          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
             tab === "source" 
               ? "text-primary border-primary" 
               : "text-slate-600 border-transparent hover:text-primary hover:border-primary/50"
@@ -415,6 +439,86 @@ export function ResearchReport({
                     <BarChart className="h-8 w-8 text-slate-400" />
                   </div>
                   <p className="text-base text-slate-600">正在整理数据分析...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {tab === "tasks" && (
+          <div className="card border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
+              <h3 className="font-medium text-slate-800 flex items-center gap-1.5">
+                <ListChecks className="h-4 w-4 text-primary" />
+                研究任务
+              </h3>
+            </div>
+            <div className="p-6 bg-white">
+              {tasks && tasks.length > 0 ? (
+                <div className="space-y-4">
+                  {tasks.map((task) => {
+                    // 将task转换为ExtendedTask类型
+                    const extendedTask = task as ExtendedTask;
+                    return (
+                      <div 
+                        key={extendedTask.id} 
+                        className="p-4 border border-slate-200 rounded-lg transition-all hover:border-primary/30 hover:bg-slate-50"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              extendedTask.status === 'finished' || extendedTask.status === 'succeeded'
+                                ? 'bg-green-100 text-green-600' 
+                                : extendedTask.status === 'failed' 
+                                ? 'bg-red-100 text-red-600' 
+                                : 'bg-blue-100 text-blue-600'
+                            }`}>
+                              {extendedTask.status === 'finished' || extendedTask.status === 'succeeded' ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M20 6L9 17l-5-5" />
+                                </svg>
+                              ) : extendedTask.status === 'failed' ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <line x1="18" y1="6" x2="6" y2="18" />
+                                  <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-slate-800">{extendedTask.title || extendedTask.name}</h4>
+                              <p className="text-sm text-slate-500">{extendedTask.nodeType || extendedTask.description}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right text-sm text-slate-500">
+                            {extendedTask.elapsedTime && (
+                              <div>耗时: {(extendedTask.elapsedTime / 1000).toFixed(1)}s</div>
+                            )}
+                            {extendedTask.totalTokens && (
+                              <div>Token: {extendedTask.totalTokens}</div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {extendedTask.error && (
+                          <div className="mt-2 p-2 bg-red-50 text-red-700 rounded text-sm">
+                            错误: {extendedTask.error}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-10 text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
+                    <ListChecks className="h-8 w-8 text-slate-400" />
+                  </div>
+                  <p className="text-base text-slate-600">尚无任务数据</p>
                 </div>
               )}
             </div>

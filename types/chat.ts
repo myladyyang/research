@@ -76,6 +76,7 @@ export interface ResearchReportProps {
   breadcrumbs?: BreadcrumbItem[];
   date?: string;
   data?: Record<string, unknown>; // 修改为any类型，对应prisma中的Json类型
+  tasks?: Task[]; // 添加tasks字段，用于显示任务进度
   // 状态属性
   isLoading?: boolean;
   isComplete?: boolean;
@@ -138,6 +139,7 @@ export interface ResearchResult {
   summary?: string;
   data?: Record<string, unknown>; // 修改为any类型，对应prisma中的Json类型
   sources?: Source[]; // 添加sources字段，对应prisma中的Json类型
+  tasks?: Task[];    // 添加tasks字段，存储工作流任务节点
   status?: string;
   isComplete: boolean;
   createdAt: string;
@@ -168,4 +170,23 @@ export type Research = {
   industryName?: string; // 行业名称
   industryCategory?: string; // 行业分类
 };
+
+// 定义任务节点接口
+export interface Task {
+  id: string;
+  nodeId: string;
+  nodeType: string;
+  title: string;
+  status: string;  // 'started', 'finished', 'failed'
+  index?: number;
+  inputs?: Record<string, unknown>;
+  outputs?: Record<string, unknown>;
+  elapsedTime?: number;
+  totalTokens?: number;
+  error?: string;
+  createdAt: string;
+  finishedAt?: string;
+  workflowRunId: string;
+  predecessorNodeId?: string;
+}
 

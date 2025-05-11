@@ -14,7 +14,8 @@
     "db:setup": "sh scripts/setup-prisma.sh",
     "seed": "node prisma/seed.mjs",
     "worker": "tsx scripts/worker.ts",
-    "dev:worker": "tsx watch scripts/worker.ts"
+    "dev:worker": "tsx watch scripts/worker.ts",
+    "clear-queue": "tsx scripts/clear-queue.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.9.0",

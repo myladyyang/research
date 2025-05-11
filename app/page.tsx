@@ -96,13 +96,15 @@ export default function Home() {
           break;
       }
 
+      const title = type === "CORPORATE" ? "上市公司气候风险分析--" + researchData.companyName : "行业气候风险分析--" + researchData.industryName;
+
       const response = await fetch(`/api/research/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          title: "气候风险" + "<" + message + ">",
+          title: title + "<" + message + ">",
           mode: "RESEARCH",
           type,
           files: files?.map(f => f.name),

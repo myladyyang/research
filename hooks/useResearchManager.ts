@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Research, ResearchRequest, ResearchResult, Source, RelatedItem } from "@/types/chat";
+import { Research, ResearchResult, Source, RelatedItem } from "@/types/chat";
 
 
 // 从研究服务移植过来的类型定义
@@ -485,21 +485,11 @@ export function useResearchManager() {
    * 获取研究报告
    */
   const getResearch = useCallback(async (researchId: string): Promise<Research> => {
-    console.log("获取研究报告 333", researchId);
     const response = await fetch(`/api/research/${researchId}`);
     return response.json();
   }, []);
 
-  /**
-   * 添加研究问题
-   */
-  const addQuestion = useCallback(async (question: ResearchQuestion): Promise<string> => {
-    const response = await fetch('/api/research', {
-      method: 'POST',
-      body: JSON.stringify(question)
-    });
-    return response.json();
-  }, []);
+
 
   /**
    * 获取用户的研究列表
@@ -594,7 +584,6 @@ export function useResearchManager() {
     api: {
       streamResearch,
       getResearch,
-      addQuestion,
       getUserResearches
     },
     

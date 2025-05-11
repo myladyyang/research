@@ -1,10 +1,9 @@
 "use client";
 
-import { Fragment, ReactNode } from 'react';
+import { Fragment, ReactNode, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ChevronRightIcon, ChevronLeftIcon, HomeIcon } from 'lucide-react';
-
 // 定义面包屑项接口
 interface BreadcrumbItem {
   label: string;
@@ -14,21 +13,26 @@ interface BreadcrumbItem {
 
 interface BreadcrumbsProps {
   showBackButton?: boolean;
-  items?: BreadcrumbItem[];
   className?: string;
 }
 
-export function Breadcrumbs({ showBackButton = true, items, className = '' }: BreadcrumbsProps) {
+
+
+export function Breadcrumbs({ showBackButton = true, className = '' }: BreadcrumbsProps) {
   const router = useRouter();
   const pathname = usePathname();
-  
+  const [breadcrumbItems, setBreadcrumbItems] = useState<BreadcrumbItem[]>([]);
+
+  useEffect(() => {
+    generateBreadcrumbsFromPath(pathname).then(items => setBreadcrumbItems(items));
+  }, [pathname]);
+
   // 如果是首页，则不显示面包屑
   if (pathname === '/') {
     return null;
   }
+
   
-  // 如果没有提供items，则尝试从路径自动生成
-  const breadcrumbItems = items || generateBreadcrumbsFromPath(pathname);
   
   // 处理返回按钮点击
   const handleBackClick = () => {
@@ -88,11 +92,11 @@ export function Breadcrumbs({ showBackButton = true, items, className = '' }: Br
 }
 
 // 根据路径自动生成面包屑
-function generateBreadcrumbsFromPath(pathname: string): BreadcrumbItem[] {
+async function generateBreadcrumbsFromPath(pathname: string): Promise<BreadcrumbItem[]> {
   const segments = pathname.split('/').filter(Boolean);
   
-  // 首页
-  const breadcrumbs = [
+  // 首页始终是第一个面包屑
+  const breadcrumbs: BreadcrumbItem[] = [
     {
       label: '首页',
       href: '/',
@@ -100,45 +104,79 @@ function generateBreadcrumbsFromPath(pathname: string): BreadcrumbItem[] {
     }
   ];
   
-  // 添加中间路径
+  // 逐段处理路径
   let currentPath = '';
-  segments.forEach((segment, index) => {
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
     currentPath += `/${segment}`;
     
-    // 尝试将路径片段转换为可读标签
-    let label = segment;
-    
-    // 识别特殊路径
-    if (segment === 'bank') {
-      label = '银行';
-    } else if (segment === 'stress-test') {
-      label = '气候风险压力测试';
-    } else if (segment === 'capital') {
-      label = '资本规划';
-    } else if (segment === 'exposure') {
-      label = '风险暴露评估';
-    } else if (segment === 'overview') {
-      label = '风险概述';
-    } else if (segment === 'industry') {
-      label = '行业';
-    } else if (segment === 'valuation') {
-      label = '估值评估';
-    } else if (segment === 'decision') {
-      label = '投资决策';
-    } else if (segment.match(/^\d+$/)) {
-      // 数字ID路径用"详情"表示
-      label = '分析报告';
+    // 处理研究报告路径
+    if (segment === 'research') {
+      // 添加"研究报告"面包屑
+      breadcrumbs.push({
+        label: '研究报告',
+        href: '/research',
+        icon: <Fragment />
+      });
+      
+      // 如果下一段是报告ID，则获取报告标题
+      if (i + 1 < segments.length) {
+        const reportId = segments[i + 1];
+        
+        try {
+          // 获取研究报告标题
+          const response = await fetch(`/api/research/simple/${reportId}`);
+          if (response.ok) {
+            const reportTitle = await response.json();
+            
+            // 添加报告标题作为最后一个面包屑
+            breadcrumbs.push({
+              label: reportTitle || '研究详情',
+              href: '',  // 当前页面，无链接
+              icon: <Fragment />
+            });
+          } else {
+            // API请求失败，使用默认标题
+            breadcrumbs.push({
+              label: '研究详情',
+              href: '',
+              icon: <Fragment />
+            });
+          }
+        } catch (error) {
+          console.error('获取研究报告标题失败:', error);
+          breadcrumbs.push({
+            label: '研究详情',
+            href: '',
+            icon: <Fragment />
+          });
+        }
+        
+        // 跳过下一段处理，因为已经处理过了
+        i++;
+      }
+      
+      // 继续处理下一个路径段
+      continue;
     }
     
-    // 明确定义href的类型为string
-    const itemHref: string = index < segments.length - 1 ? currentPath : '';
+    // 处理个人空间路径
+    if (segment === 'myspace') {
+      breadcrumbs.push({
+        label: '个人空间',
+        href: i < segments.length - 1 ? currentPath : '',
+        icon: <Fragment />
+      });
+      continue;
+    }
     
+    // 处理其他路径段
     breadcrumbs.push({
-      label,
-      href: itemHref,
-      icon: <ChevronRightIcon className="h-3.5 w-3.5" />
+      label: segment,
+      href: i < segments.length - 1 ? currentPath : '',
+      icon: <Fragment />
     });
-  });
+  }
   
   return breadcrumbs;
 } 
